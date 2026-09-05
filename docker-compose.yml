@@ -1,0 +1,42 @@
+services:
+  mediamtx:
+    image: bluenviron/mediamtx:1.20.1
+    container_name: rtsp-simulator-mediamtx
+    restart: unless-stopped
+    ports:
+      - "${PUBLIC_RTSP_PORT:-8554}:8554"
+    volumes:
+      - ./mediamtx/mediamtx.yml:/mediamtx.yml:ro
+    environment:
+      MTX_RTSPTRANSPORTS: tcp
+
+  simulator:
+    build: ./simulator
+    container_name: rtsp-simulator
+    restart: unless-stopped
+    ports:
+      - "${SIMULATOR_HTTP_PORT:-8080}:8080"
+    depends_on:
+      - mediamtx
+    environment:
+      MEDIAMTX_HOST: ${MEDIAMTX_HOST:-mediamtx}
+      MEDIAMTX_RTSP_PORT: ${MEDIAMTX_RTSP_PORT:-8554}
+      PUBLIC_RTSP_HOST: ${PUBLIC_RTSP_HOST:-localhost}
+      PUBLIC_RTSP_PORT: ${PUBLIC_RTSP_PORT:-8554}
+      RTSP_PATH_PREFIX: ${RTSP_PATH_PREFIX:-simulator}
+      DATA_DIR: /data
+      DATABASE_PATH: /data/simulator.db
+      UPLOAD_VIDEO_DIR: /data/videos
+      SOURCE_VIDEO_DIR: /data/local-sources
+      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-2147483648}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - simulator-data:/data
+      # Read-only mounted source directory: files placed here can be used
+      # as camera sources without uploading them through the browser.
+      - ./sample-media:/data/local-sources:ro
+    # Give FFmpeg children time to terminate gracefully on `docker compose down`.
+    stop_grace_period: 20s
+
+volumes:
+  simulator-data:
