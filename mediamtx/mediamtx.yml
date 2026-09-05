@@ -1,0 +1,52 @@
+# MediaMTX owned by the VMS (Component 2).
+#
+# Its job: pull registered RTSP cameras and hand them to browsers over WebRTC.
+# Paths are never written here - the VMS creates and removes them at runtime
+# through the Control API, so a camera change never restarts this server.
+logLevel: info
+logDestinations: [stdout]
+
+# --- Control API ------------------------------------------------------------
+# Reachable only from inside the compose network: port 9997 is deliberately not
+# published to the host (see docker-compose.yml).
+api: true
+apiAddress: :9997
+
+# MediaMTX's default only grants the `api` action to 127.0.0.1, which would
+# reject the VMS container. Widen it to the compose network. This is safe only
+# because 9997 is not published; publishing it means adding real credentials.
+authInternalUsers:
+  - user: any
+    pass:
+    ips: []
+    permissions:
+      - action: publish
+      - action: read
+      - action: playback
+      - action: api
+
+# --- Ingest -----------------------------------------------------------------
+rtsp: true
+rtspAddress: :8554
+# TCP only: UDP RTP/RTCP does not survive ordinary Docker port mapping.
+rtspTransports: [tcp]
+
+# --- Delivery ---------------------------------------------------------------
+webrtc: true
+webrtcAddress: :8889
+# One fixed UDP port for ICE, so a single published port is enough.
+webrtcLocalUDPAddress: :8189
+webrtcAllowOrigins: ["*"]
+# Advertised alongside the container's own addresses, which are unreachable
+# from the host. Override with MTX_WEBRTCADDITIONALHOSTS for remote hosts.
+webrtcAdditionalHosts: [localhost]
+
+# --- Everything else off ----------------------------------------------------
+rtmp: false
+hls: false
+srt: false
+moq: false
+
+# The VMS adds one path per enabled camera at runtime. No `all_others`: an
+# unmanaged path must not appear by accident.
+paths: {}
