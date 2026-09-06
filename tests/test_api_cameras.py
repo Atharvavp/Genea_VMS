@@ -9,10 +9,13 @@ from tests.conftest import CREDENTIALED_URL, SIMULATOR_URL
 OTHER_URL = "rtsp://host.docker.internal:8554/simulator/dock"
 
 
-async def create(client, name="Lobby", url=SIMULATOR_URL, enabled=True):
-    response = await client.post(
-        "/api/cameras", json={"name": name, "rtsp_url": url, "enabled": enabled}
-    )
+async def create(
+    client, name="Lobby", url=SIMULATOR_URL, enabled=True, recording_enabled=None
+):
+    payload = {"name": name, "rtsp_url": url, "enabled": enabled}
+    if recording_enabled is not None:
+        payload["recording_enabled"] = recording_enabled
+    response = await client.post("/api/cameras", json=payload)
     assert response.status_code == 201, response.text
     return response.json()
 
@@ -59,15 +62,19 @@ async def test_create_returns_the_full_view(client, fake_mediamtx):
     assert body["mediamtx_path"] == f"vms_{body['id']}"
     assert body["webrtc_url"] == f"http://localhost:8889/vms_{body['id']}/whep"
     assert body["health"]["state"] == "ONLINE"
+    assert body["recording_enabled"] is False  # never on unless asked for
+    assert body["recording"] == {"state": "DISABLED", "last_error": None}
     assert set(body) == {
         "id",
         "name",
         "rtsp_url_display",
         "has_credentials",
         "enabled",
+        "recording_enabled",
         "mediamtx_path",
         "webrtc_url",
         "health",
+        "recording",
         "created_at",
         "updated_at",
     }
@@ -275,12 +282,103 @@ async def test_one_camera_failing_leaves_the_others_listed(client, manager, fake
     assert by_id[bad["id"]]["health"]["state"] == "OFFLINE"
 
 
+# --- recording preference ---------------------------------------------------
+
+
+async def test_recording_is_off_by_default(client, fake_mediamtx):
+    body = await create(client)
+    assert body["recording_enabled"] is False
+    assert body["recording"]["state"] == "DISABLED"
+    assert fake_mediamtx.records(body["mediamtx_path"]) is False
+
+
+async def test_create_with_recording_on(client, fake_mediamtx):
+    fake_mediamtx.reachable_sources.add(SIMULATOR_URL)
+    body = await create(client, recording_enabled=True)
+    assert body["recording_enabled"] is True
+    assert body["recording"]["state"] == "RECORDING"
+    assert fake_mediamtx.records(body["mediamtx_path"]) is True
+
+
+async def test_patch_toggles_recording_without_dropping_the_live_path(
+    client, fake_mediamtx
+):
+    """Recording ON/OFF replaces the same path; live stays configured."""
+    fake_mediamtx.reachable_sources.add(SIMULATOR_URL)
+    created = await create(client)
+    path = created["mediamtx_path"]
+
+    on = (
+        await client.patch(
+            f"/api/cameras/{created['id']}", json={"recording_enabled": True}
+        )
+    ).json()
+    assert on["recording_enabled"] is True
+    assert fake_mediamtx.records(path) is True
+    assert fake_mediamtx.paths[path] == SIMULATOR_URL  # live untouched
+
+    off = (
+        await client.patch(
+            f"/api/cameras/{created['id']}", json={"recording_enabled": False}
+        )
+    ).json()
+    assert off["recording_enabled"] is False
+    assert off["recording"]["state"] == "DISABLED"
+    assert fake_mediamtx.records(path) is False
+    # The path is still there, so live keeps working and history stays visible.
+    assert fake_mediamtx.paths[path] == SIMULATOR_URL
+    assert path not in fake_mediamtx.calls_for("delete")
+
+
+async def test_recording_toggle_touches_only_the_target_camera(client, fake_mediamtx):
+    first = await create(client, name="First")
+    second = await create(client, name="Second", url=OTHER_URL)
+    fake_mediamtx.calls.clear()
+
+    await client.patch(
+        f"/api/cameras/{first['id']}", json={"recording_enabled": True}
+    )
+
+    assert fake_mediamtx.calls_for("ensure") == [first["mediamtx_path"]]
+    assert fake_mediamtx.records(second["mediamtx_path"]) is False
+
+
+async def test_disable_keeps_the_recording_preference(client, fake_mediamtx):
+    created = await create(client, recording_enabled=True)
+
+    disabled = (await client.post(f"/api/cameras/{created['id']}/disable")).json()
+    assert disabled["enabled"] is False
+    # The preference is kept, so enabling resumes recording by itself.
+    assert disabled["recording_enabled"] is True
+    assert disabled["recording"]["state"] == "DISABLED"
+    assert fake_mediamtx.paths == {}
+
+    fake_mediamtx.reachable_sources.add(SIMULATOR_URL)
+    enabled = (await client.post(f"/api/cameras/{created['id']}/enable")).json()
+    assert enabled["recording_enabled"] is True
+    assert enabled["recording"]["state"] == "RECORDING"
+    assert fake_mediamtx.records(created["mediamtx_path"]) is True
+
+
+async def test_recording_state_is_waiting_while_the_source_is_offline(
+    client, manager, fake_mediamtx
+):
+    created = await create(client, url="rtsp://192.0.2.1:554/nope", recording_enabled=True)
+    await manager.refresh_health()
+
+    body = (await client.get(f"/api/cameras/{created['id']}")).json()
+    assert body["health"]["state"] == "OFFLINE"
+    # Recording is configured but MediaMTX has no source to write.
+    assert body["recording"]["state"] == "WAITING"
+
+
 # --- app plumbing -----------------------------------------------------------
 
 
 async def test_openapi_lists_the_camera_surface(client):
     paths = (await client.get("/openapi.json")).json()["paths"]
     assert set(paths) >= {
+        "/api/recordings",
         "/api/cameras",
         "/api/cameras/{camera_id}",
         "/api/cameras/{camera_id}/enable",

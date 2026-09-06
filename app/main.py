@@ -1,7 +1,9 @@
 """FastAPI application: REST API plus the single-page live-view UI.
 
 No media passes through this process. It configures MediaMTX and reports what
-MediaMTX says; video goes RTSP source -> MediaMTX -> WebRTC -> browser.
+MediaMTX says; live video goes RTSP source -> MediaMTX -> WebRTC -> browser, and
+recorded video goes MediaMTX's recording store -> its playback server ->
+browser. The VMS builds the URLs for both and serves neither.
 """
 
 from __future__ import annotations
@@ -16,11 +18,13 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.cameras import router as cameras_router
 from app.api.errors import register_exception_handlers
+from app.api.recordings import router as recordings_router
 from app.config import Settings, get_settings
 from app.logging_config import configure_logging
 from app.persistence.camera_repository import CameraRepository
 from app.services.camera_manager import CameraManager
-from app.services.mediamtx_client import MediaMTXClient
+from app.services.mediamtx_client import MediaMTXClient, MediaMTXPlaybackClient
+from app.services.recording_manager import RecordingManager
 
 logger = logging.getLogger(__name__)
 
@@ -33,14 +37,30 @@ def build_manager(settings: Settings) -> CameraManager:
     return CameraManager(settings, repository, client)
 
 
+def build_recording_manager(settings: Settings) -> RecordingManager:
+    """Recordings read the same desired state, through a separate client.
+
+    The playback server is a different port and a different failure domain from
+    the Control API, so it gets its own client: a playback outage must not be
+    able to look like a control-plane outage.
+    """
+    repository = CameraRepository(settings.database_path)
+    playback = MediaMTXPlaybackClient(
+        settings.mediamtx_playback_url, settings.mediamtx_timeout_seconds
+    )
+    return RecordingManager(settings, repository, playback)
+
+
 def create_app(
     settings: Settings | None = None,
     manager: CameraManager | None = None,
+    recording_manager: RecordingManager | None = None,
 ) -> FastAPI:
-    """Build the app. Tests may inject a pre-wired manager."""
+    """Build the app. Tests may inject pre-wired managers."""
     settings = settings or get_settings()
     configure_logging(settings.log_level)
     manager = manager or build_manager(settings)
+    recording_manager = recording_manager or build_recording_manager(settings)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -54,18 +74,21 @@ def create_app(
             yield
         finally:
             await manager.shutdown()
+            await recording_manager.aclose()
 
     app = FastAPI(
-        title="Genea VMS - Live View",
-        version="1.0.0",
+        title="Genea VMS - Live View and Recording",
+        version="1.1.0",
         description=(
-            "Register generic RTSP cameras, have MediaMTX ingest them, and "
-            "watch them in the browser over WebRTC."
+            "Register generic RTSP cameras, have MediaMTX ingest them, watch "
+            "them in the browser over WebRTC, record them continuously, and "
+            "play the recorded history back by date."
         ),
         lifespan=lifespan,
     )
     app.state.settings = settings
     app.state.camera_manager = manager
+    app.state.recording_manager = recording_manager
 
     @app.middleware("http")
     async def prevent_ui_asset_caching(request: Request, call_next):
@@ -83,6 +106,7 @@ def create_app(
 
     register_exception_handlers(app)
     app.include_router(cameras_router, prefix="/api", tags=["cameras"])
+    app.include_router(recordings_router, prefix="/api", tags=["recordings"])
 
     @app.get("/health", tags=["system"])
     async def health() -> JSONResponse:

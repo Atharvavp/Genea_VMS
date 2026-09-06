@@ -12,6 +12,7 @@ A third kind of state, the browser's WebRTC session, lives only in the browser.
 
 from __future__ import annotations
 
+import hashlib
 import re
 import uuid
 from dataclasses import dataclass
@@ -24,6 +25,20 @@ from app.security.rtsp_url import InvalidRtspUrl, validate_rtsp_url
 
 NAME_MAX_LENGTH = 100
 CAMERA_ID_PATTERN = re.compile(r"^cam_[0-9a-f]{8}$")
+
+
+class RecordingState(str, Enum):
+    """Is this camera currently being recorded?
+
+    Inferred, not measured: MediaMTX 1.20.1 exposes no recorder-writer health,
+    so RECORDING means "recording is configured and MediaMTX has the source",
+    not "bytes are provably reaching the disk right now".
+    """
+
+    DISABLED = "DISABLED"
+    WAITING = "WAITING"
+    RECORDING = "RECORDING"
+    ERROR = "ERROR"
 
 
 class CameraHealthState(str, Enum):
@@ -76,6 +91,9 @@ class CameraCreate(BaseModel):
     name: str = Field(min_length=1, max_length=NAME_MAX_LENGTH)
     rtsp_url: str
     enabled: bool = True
+    # Off unless asked for: registering a camera must never start writing to
+    # disk by surprise.
+    recording_enabled: bool = False
 
     @field_validator("name")
     @classmethod
@@ -101,6 +119,7 @@ class CameraUpdate(BaseModel):
     name: str | None = None
     rtsp_url: str | None = None
     enabled: bool | None = None
+    recording_enabled: bool | None = None
 
     @field_validator("name")
     @classmethod
@@ -130,6 +149,17 @@ class CameraHealth(BaseModel):
     mediamtx_available: bool = False
 
 
+class CameraRecordingStatus(BaseModel):
+    """Recording runtime state, derived and never persisted.
+
+    Separate from historical playback availability: a failure to list or fetch
+    history is a playback failure and must not appear here.
+    """
+
+    state: RecordingState = RecordingState.DISABLED
+    last_error: str | None = None
+
+
 class CameraView(BaseModel):
     """A camera as the API and UI see it.
 
@@ -142,11 +172,50 @@ class CameraView(BaseModel):
     rtsp_url_display: str
     has_credentials: bool
     enabled: bool
+    recording_enabled: bool
     mediamtx_path: str
     webrtc_url: str
     health: CameraHealth
+    recording: CameraRecordingStatus
     created_at: str
     updated_at: str
+
+
+# --- Recordings -------------------------------------------------------------
+
+
+class RecordingItem(BaseModel):
+    """One continuous recorded timespan, as MediaMTX's playback server reports it.
+
+    Not one file: MediaMTX merges consecutive segments into a single span, so a
+    span covers everything recorded between two interruptions of the source.
+    """
+
+    id: str
+    start_time: str
+    end_time: str
+    duration_seconds: float
+    playback_url: str
+    source: str = "mediamtx"
+
+
+class RecordingListResponse(BaseModel):
+    camera_id: str
+    camera_name: str
+    date: str
+    items: list[RecordingItem]
+
+
+def recording_id(camera_id: str, start_time: str, duration_seconds: float) -> str:
+    """A stable key for one timespan, for the frontend to render a list with.
+
+    Deliberately opaque and derived only from values the API already returns:
+    it carries no filesystem path, so it can never be turned into one.
+    """
+    digest = hashlib.sha256(
+        f"{camera_id}|{start_time}|{duration_seconds}".encode()
+    ).hexdigest()
+    return f"rec_{digest[:16]}"
 
 
 # --- Persistence ------------------------------------------------------------
@@ -161,5 +230,6 @@ class CameraRecord:
     rtsp_url: str
     mediamtx_path: str
     enabled: bool
+    recording_enabled: bool
     created_at: str
     updated_at: str

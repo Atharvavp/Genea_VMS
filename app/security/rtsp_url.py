@@ -22,6 +22,11 @@ MASK = "***"
 _CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f-\x9f]")
 _WHITESPACE = re.compile(r"\s")
 
+# `scheme://user:password@host` anywhere in free text. Used as a backstop by
+# `sanitize_text` for messages whose originating URL is not known to the caller
+# - so a password cannot survive simply because nobody passed the right URL in.
+_EMBEDDED_CREDENTIALS = re.compile(r"([a-zA-Z][a-zA-Z0-9+.\-]*://[^\s/@:]+):[^\s/@]+@")
+
 
 class InvalidRtspUrl(ValueError):
     """The supplied string is not a usable RTSP URL."""
@@ -156,6 +161,11 @@ def sanitize_text(text: str, *urls: str) -> str:
     MediaMTX quotes the source URL back in some error messages, so any password
     from the URLs involved is replaced, and the credentialed URLs themselves are
     swapped for their masked form.
+
+    Callers that know which URLs are involved should pass them. Callers that do
+    not - the playback client, for one, which deals in path names and never sees
+    a source URL - still get the backstop below, which masks the password of any
+    credentialed URL embedded in the text.
     """
     cleaned = strip_control_chars(str(text))
     for url in urls:
@@ -167,4 +177,4 @@ def sanitize_text(text: str, *urls: str) -> str:
         secret = secret_of(url)
         if secret:
             cleaned = cleaned.replace(secret, MASK)
-    return cleaned
+    return _EMBEDDED_CREDENTIALS.sub(rf"\1:{MASK}@", cleaned)

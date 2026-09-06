@@ -1,8 +1,12 @@
-# MediaMTX owned by the VMS (Component 2).
+# MediaMTX owned by the VMS.
 #
-# Its job: pull registered RTSP cameras and hand them to browsers over WebRTC.
-# Paths are never written here - the VMS creates and removes them at runtime
-# through the Control API, so a camera change never restarts this server.
+# Its job: pull registered RTSP cameras, hand them to browsers over WebRTC, and
+# record the ones the VMS asks it to. Paths are never written here - the VMS
+# creates and removes them at runtime through the Control API, so a camera
+# change never restarts this server.
+#
+# Recording settings are per-path and are therefore not here either: each
+# managed path carries its own recording block, sent in full on every update.
 logLevel: info
 logDestinations: [stdout]
 
@@ -40,6 +44,14 @@ webrtcAllowOrigins: ["*"]
 # Advertised alongside the container's own addresses, which are unreachable
 # from the host. Override with MTX_WEBRTCADDITIONALHOSTS for remote hosts.
 webrtcAdditionalHosts: [localhost]
+
+# --- Historical playback ----------------------------------------------------
+# Serves recorded segments back to the browser: /list for what exists, /get for
+# the media itself. Published to the host, because the browser fetches from it
+# directly - no recorded byte passes through the VMS process.
+playback: true
+playbackAddress: :9996
+playbackAllowOrigins: ["*"]
 
 # --- Everything else off ----------------------------------------------------
 rtmp: false

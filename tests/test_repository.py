@@ -11,7 +11,13 @@ from app.persistence.camera_repository import CameraRepository, DuplicatePath
 from app.persistence.database import connect
 
 
-def make_record(camera_id="cam_00000001", name="Lobby", enabled=True, url=None):
+def make_record(
+    camera_id="cam_00000001",
+    name="Lobby",
+    enabled=True,
+    url=None,
+    recording_enabled=False,
+):
     now = utcnow_iso()
     return CameraRecord(
         id=camera_id,
@@ -19,6 +25,7 @@ def make_record(camera_id="cam_00000001", name="Lobby", enabled=True, url=None):
         rtsp_url=url or f"rtsp://cam/{camera_id}",
         mediamtx_path=f"vms_{camera_id}",
         enabled=enabled,
+        recording_enabled=recording_enabled,
         created_at=now,
         updated_at=now,
     )
@@ -44,6 +51,7 @@ def test_initialize_creates_schema_and_is_idempotent(repo):
         "rtsp_url",
         "mediamtx_path",
         "enabled",
+        "recording_enabled",
         "created_at",
         "updated_at",
     }
@@ -57,6 +65,91 @@ def test_health_is_not_persisted(repo):
             for row in connection.execute("PRAGMA table_info(cameras)").fetchall()
         }
     assert not columns & {"health_state", "last_error", "last_checked_at"}
+
+
+def test_runtime_recording_state_is_not_persisted(repo):
+    """`recording_enabled` is desired state; RECORDING/WAITING is derived."""
+    with connect(repo.db_path) as connection:
+        columns = {
+            row["name"]
+            for row in connection.execute("PRAGMA table_info(cameras)").fetchall()
+        }
+    assert "recording_enabled" in columns
+    assert not columns & {"recording_state", "recording_last_error", "last_segment_at"}
+
+
+def test_no_recordings_table_exists(repo):
+    """MediaMTX is authoritative for recording existence; there is no index."""
+    with connect(repo.db_path) as connection:
+        tables = {
+            row["name"]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            ).fetchall()
+        }
+    assert "recordings" not in tables
+
+
+def test_recording_preference_round_trips(repo):
+    record = repo.insert(make_record("cam_00000001", recording_enabled=True))
+    assert repo.get(record.id).recording_enabled is True
+
+    off = CameraRecord(**{**record.__dict__, "recording_enabled": False})
+    repo.update(off)
+    assert repo.get(record.id).recording_enabled is False
+
+
+def test_recording_preference_defaults_to_off(repo):
+    repo.insert(make_record("cam_00000001"))
+    assert repo.get("cam_00000001").recording_enabled is False
+
+
+def test_disabling_a_camera_keeps_its_recording_preference(repo):
+    """A disabled camera resumes recording when it is enabled again."""
+    record = repo.insert(make_record("cam_00000001", recording_enabled=True))
+    repo.update(CameraRecord(**{**record.__dict__, "enabled": False}))
+    stored = repo.get(record.id)
+    assert stored.enabled is False
+    assert stored.recording_enabled is True
+
+
+def test_upgrade_from_a_component_2_database_preserves_rows(tmp_path):
+    """The Component 2 -> 3 upgrade adds a column and nothing else."""
+    db_path = tmp_path / "legacy.db"
+    legacy = sqlite3.connect(db_path)
+    legacy.executescript(
+        """
+        CREATE TABLE cameras (
+            id TEXT PRIMARY KEY, name TEXT NOT NULL, rtsp_url TEXT NOT NULL,
+            mediamtx_path TEXT NOT NULL, enabled INTEGER NOT NULL,
+            created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+        CREATE UNIQUE INDEX ux_cameras_mediamtx_path ON cameras (mediamtx_path);
+        INSERT INTO cameras VALUES (
+            'cam_00000001', 'Legacy', 'rtsp://admin:hunter2@10.0.0.9:554/x',
+            'vms_cam_00000001', 1, '2026-01-01T00:00:00.000Z',
+            '2026-01-01T00:00:00.000Z');
+        """
+    )
+    legacy.commit()
+    legacy.close()
+
+    repository = CameraRepository(db_path)
+    repository.initialize()
+    repository.initialize()  # idempotent: safe on every start
+
+    stored = repository.get("cam_00000001")
+    assert stored.name == "Legacy"
+    assert stored.enabled is True
+    # An upgraded camera must not start recording by surprise.
+    assert stored.recording_enabled is False
+    # The stored source, credentials and all, survives untouched.
+    assert stored.rtsp_url == "rtsp://admin:hunter2@10.0.0.9:554/x"
+
+
+def test_upgrade_is_a_no_op_on_a_current_database(repo):
+    repo.insert(make_record("cam_00000001", recording_enabled=True))
+    repo.initialize()
+    assert repo.get("cam_00000001").recording_enabled is True
 
 
 def test_connection_uses_wal(repo):
@@ -84,6 +177,7 @@ def test_duplicate_mediamtx_path_rejected(repo):
         rtsp_url="rtsp://cam/x",
         mediamtx_path="vms_cam_00000001",
         enabled=True,
+        recording_enabled=False,
         created_at=utcnow_iso(),
         updated_at=utcnow_iso(),
     )
@@ -105,6 +199,7 @@ def test_update_changes_name_url_and_enabled(repo):
         rtsp_url="rtsp://other:554/live",
         mediamtx_path=record.mediamtx_path,
         enabled=False,
+        recording_enabled=False,
         created_at=record.created_at,
         updated_at=utcnow_iso(),
     )
@@ -155,6 +250,7 @@ def test_list_keeps_insertion_order_for_same_timestamp_creations(repo):
                 rtsp_url=f"rtsp://cam/{index}",
                 mediamtx_path=f"vms_cam_0000000{index}",
                 enabled=True,
+                recording_enabled=False,
                 created_at=stamp,
                 updated_at=stamp,
             )

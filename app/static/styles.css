@@ -14,6 +14,8 @@
   --warn-bg: #fffaeb;
   --idle: #475467;
   --idle-bg: #f2f4f7;
+  --rec: #b42318;
+  --rec-bg: #fef3f2;
   --video-bg: #101418;
   --radius: 10px;
 }
@@ -156,6 +158,12 @@ main { max-width: 1280px; margin: 0 auto; padding: 20px; }
 .badge-player.reconnecting { background: var(--warn-bg); color: var(--warn); }
 .badge-player.error { background: var(--danger-bg); color: var(--danger); }
 
+/* Recording state: a third badge, never conflated with the two above. */
+.badge-recording.disabled { background: var(--idle-bg); color: var(--idle); }
+.badge-recording.recording { background: var(--rec-bg); color: var(--rec); }
+.badge-recording.waiting { background: var(--warn-bg); color: var(--warn); }
+.badge-recording.error { background: var(--danger-bg); color: var(--danger); }
+
 .tile-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* Buttons --------------------------------------------------------------- */
@@ -173,6 +181,7 @@ main { max-width: 1280px; margin: 0 auto; padding: 20px; }
 .btn:disabled { opacity: 0.55; cursor: not-allowed; }
 .btn-primary { background: var(--primary); border-color: var(--primary); color: #fff; }
 .btn-primary:hover { background: var(--primary-dark); }
+.btn-active { border-color: var(--primary); color: var(--primary); font-weight: 600; }
 .btn-danger { color: var(--danger); border-color: #fda29b; }
 .btn-danger:hover { background: var(--danger-bg); }
 .btn-icon {
@@ -251,6 +260,55 @@ label.checkbox input { margin: 0; }
 
 .video-frame-large { aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; }
 .focus-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; color: var(--muted); font-size: 12px; }
+
+/* Recordings ------------------------------------------------------------ */
+.date-picker { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.date-picker input {
+  font: inherit;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.recordings-state {
+  color: var(--muted);
+  font-size: 13px;
+  padding: 14px;
+  background: var(--idle-bg);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.recordings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.recording-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+.recording-row:hover { background: #f8fafc; }
+.recording-row.selected { border-color: var(--primary); background: #eff4ff; }
+.recording-time { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.recording-duration { color: var(--muted); }
+
+/* Native controls only, so the element keeps its own chrome. */
+#recordings-video { width: 100%; height: 100%; display: block; background: var(--video-bg); }
 
 /* Toast ----------------------------------------------------------------- */
 .toast {

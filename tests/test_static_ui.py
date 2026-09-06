@@ -210,9 +210,177 @@ def test_no_simulator_coupling(html, js):
 
 
 def test_no_out_of_scope_features(html, js):
+    """Recording and historical playback are in scope now; these are not."""
     combined = (html + js).lower()
-    for word in ("record", "playback", "timeline", "snapshot", "onvif", "ptz"):
+    for word in ("timeline", "snapshot", "motion", "onvif", "ptz", "transcode"):
         assert word not in combined, word
+
+
+# --- recording controls -----------------------------------------------------
+
+
+def test_the_add_form_offers_recording_and_defaults_it_off(html, js):
+    assert 'id="recording-enabled-input"' in html
+    line = next(
+        line for line in html.splitlines() if 'id="recording-enabled-input"' in line
+    )
+    assert "checked" not in line  # never recording unless asked for
+    creator = js.split("function openCreator()", 1)[1].split("\n}", 1)[0]
+    assert 'el("recording-enabled-input").checked = false' in creator
+
+
+def test_the_edit_form_shows_the_stored_recording_preference(js):
+    editor = js.split("function openEditor(camera)", 1)[1].split("\n}", 1)[0]
+    assert "camera.recording_enabled" in editor
+
+
+def test_the_form_sends_the_recording_preference(js):
+    submit = js.split("async function submitForm(event)", 1)[1]
+    assert "recording_enabled: recordingEnabled" in submit
+
+
+def test_the_recording_toggle_uses_the_existing_patch_route(js):
+    action = js.split('if (action === "record")', 1)[1].split("\n    }", 1)[0]
+    assert '`/api/cameras/${camera.id}`' in action
+    assert '"PATCH"' in action
+    assert "recording_enabled: !camera.recording_enabled" in action
+    # Toggling recording must never touch enable/disable.
+    assert "/disable" not in action and "/enable" not in action
+
+
+def test_recording_badges_cover_the_four_states(js):
+    for state in ("DISABLED", "WAITING", "RECORDING", "ERROR"):
+        assert f"{state}:" in js
+    for label in ("REC OFF", "WAITING", "RECORDING", "REC ERROR"):
+        assert label in js
+
+
+def test_recording_is_a_third_badge_separate_from_health_and_player(html, js):
+    assert 'data-role="recording"' in js
+    assert 'data-role="health"' in js and 'data-role="player"' in js
+    assert 'id="focus-recording"' in html
+
+
+def test_a_running_player_does_not_restart_when_recording_changes(js):
+    """Toggling recording must not interrupt anyone's live view."""
+    sync = js.split("function syncTilePlayer(camera)", 1)[1].split("\n}", 1)[0]
+    assert "recording" not in sync
+    assert "existing.url === camera.webrtc_url" in sync
+
+
+# --- recordings dialog ------------------------------------------------------
+
+
+def test_the_recordings_dialog_ships_hidden(html):
+    assert '<div id="recordings-modal" class="modal" hidden aria-hidden="true">' in html
+
+
+def test_every_recordings_state_block_ships_hidden(html):
+    for marker in ('id="recordings-loading"', 'id="recordings-empty"',
+                   'id="recordings-error"', 'id="recordings-list"',
+                   'id="recordings-player"'):
+        line = next(line for line in html.splitlines() if marker in line)
+        assert "hidden" in line, marker
+
+
+def test_the_recordings_dialog_goes_through_the_one_visibility_helper(js):
+    assert 'setModalOpen("recordings-modal"' in js
+    assert 'el("recordings-modal").hidden =' not in js
+
+
+def test_init_closes_the_recordings_dialog_before_the_timer(js):
+    init = js.split("function init()", 1)[1]
+    before_timer = init.split("setInterval", 1)[0]
+    assert 'setModalOpen("recordings-modal", false)' in before_timer
+
+
+def test_polling_never_opens_or_reloads_the_recordings_dialog(js):
+    """The 2 s poll must not disturb a list being read or a video playing."""
+    tick = js.split("async function tick()", 1)[1].split("\n}", 1)[0]
+    assert "openRecordings" not in tick
+    assert "loadRecordings" not in tick
+    refresh = js.split("async function refresh()", 1)[1].split("\n}", 1)[0]
+    assert "loadRecordings" not in refresh
+    assert "recordings" not in refresh
+
+
+def test_history_states_cover_the_four_the_dialog_can_be_in(js):
+    for name in ("LOADING", "AVAILABLE", "EMPTY", "UNAVAILABLE"):
+        assert f'"{name}"' in js
+
+
+def test_a_history_failure_stays_in_the_dialog(js):
+    """A playback outage must not be rendered as a camera recording error."""
+    loader = js.split("async function loadRecordings()", 1)[1].split("\n}", 1)[0]
+    assert 'setHistoryState("UNAVAILABLE"' in loader
+    # It must not write camera state or re-render the grid.
+    assert "renderGrid" not in loader
+    assert "updateTile" not in loader
+
+
+def test_the_playback_url_comes_from_the_api(js):
+    """The frontend must not know the playback host, path shape or query."""
+    assert "item.playback_url" in js
+    assert "video.src = item.playback_url" in js
+    assert "9996" not in js
+    assert "/get?path=" not in js
+    assert "format=mp4" not in js
+
+
+def test_the_recordings_request_is_by_camera_id_and_date(js):
+    loader = js.split("async function loadRecordings()", 1)[1].split("\n}", 1)[0]
+    assert "/api/recordings?camera_id=" in loader
+    assert "encodeURIComponent(cameraId)" in loader
+    assert "encodeURIComponent(date)" in loader
+    # No MediaMTX path is ever sent by the client.
+    assert "mediamtx_path" not in loader
+
+
+def test_the_date_defaults_to_the_current_utc_day(js):
+    assert 'new Date().toISOString().slice(0, 10)' in js
+    opener = js.split("function openRecordings(camera)", 1)[1].split("\n}", 1)[0]
+    assert "todayUtc()" in opener
+
+
+def test_historical_playback_uses_native_controls(html, js):
+    element = next(
+        line for line in html.splitlines() if 'id="recordings-video"' in line
+    )
+    assert "controls" in element
+    assert 'preload="metadata"' in element
+    assert "playsinline" in element
+    # No custom transport: the browser's own controls do play/pause/seek.
+    assert "MediaMTXWebRTCReader" not in js.split(
+        "function playRecording(item, list)", 1
+    )[1].split("\n}", 1)[0]
+
+
+def test_the_history_player_is_not_a_webrtc_player(js):
+    play = js.split("function playRecording(item, list)", 1)[1].split("\n}", 1)[0]
+    assert "new Player(" not in play
+    assert "srcObject" not in play
+
+
+def test_closing_the_recordings_dialog_stops_the_media(js):
+    close = js.split("function clearRecordingPlayer()", 1)[1].split("\n}", 1)[0]
+    assert "video.pause()" in close
+    assert 'video.removeAttribute("src")' in close
+
+
+def test_disabled_cameras_cannot_open_the_recordings_dialog(js):
+    update = js.split("function updateTile(tile, camera)", 1)[1].split("\n}", 1)[0]
+    assert 'recordings.disabled = !camera.enabled' in update
+
+
+def test_recording_rows_are_escaped(js):
+    render = js.split("function renderRecordings(items)", 1)[1].split("\n}", 1)[0]
+    assert "escapeHtml(" in render
+
+
+def test_recording_styles_exist(css):
+    assert ".badge-recording.recording {" in css
+    assert ".recording-row.selected {" in css
+    assert ".recordings-list {" in css
 
 
 # --- served correctly -------------------------------------------------------

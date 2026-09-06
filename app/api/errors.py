@@ -14,6 +14,11 @@ Two deliberate absences compared with a fuller taxonomy:
   registered and reported `OFFLINE`, which is the PRD's semantics for "the VMS
   cannot currently obtain this source".
 
+The recording errors below are historical-playback failures only. A
+`recording_unavailable` response says the playback server could not answer; it
+does not mean the camera has stopped recording, and it never changes the
+camera's recording state.
+
 Every message and detail here is safe to show: nothing that reaches this module
 carries an RTSP password.
 """
@@ -30,6 +35,12 @@ from pydantic import ValidationError
 
 from app.security.rtsp_url import sanitize_text
 from app.services.camera_manager import CameraNotFound
+from app.services.recording_manager import (
+    CameraNotFound as RecordingCameraNotFound,
+    DisabledCameraHistory,
+    InvalidDate,
+)
+from app.services.mediamtx_client import RecordingUnavailable
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +83,32 @@ class CameraNotFoundError(ApiError):
         )
 
 
+class RecordingUnavailableError(ApiError):
+    """History could not be served. Not a statement about live recording."""
+
+    def __init__(self, message: str | None = None) -> None:
+        super().__init__(
+            503,
+            "recording_unavailable",
+            message
+            or (
+                "Recorded history is not available right now. This does not "
+                "affect live viewing or ongoing recording."
+            ),
+        )
+
+
+class DisabledCameraHistoryUnavailableError(ApiError):
+    def __init__(self, camera_id: str) -> None:
+        super().__init__(
+            409,
+            "disabled_camera_history_unavailable",
+            "Recorded history is only available while a camera is enabled. "
+            "The recordings are still on disk; enable the camera to browse them.",
+            {"camera_id": sanitize_text(camera_id)[:64]},
+        )
+
+
 class ValidationFailed(ApiError):
     def __init__(self, message: str, details: dict[str, Any] | None = None) -> None:
         super().__init__(422, "validation_error", message, details)
@@ -100,6 +137,36 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(CameraNotFound)
     async def _handle_camera_not_found(_: Request, exc: CameraNotFound) -> JSONResponse:
         return CameraNotFoundError(str(exc.args[0] if exc.args else "?")).to_response()
+
+    @app.exception_handler(RecordingCameraNotFound)
+    async def _handle_recording_camera_not_found(
+        _: Request, exc: RecordingCameraNotFound
+    ) -> JSONResponse:
+        return CameraNotFoundError(str(exc.args[0] if exc.args else "?")).to_response()
+
+    @app.exception_handler(DisabledCameraHistory)
+    async def _handle_disabled_history(
+        _: Request, exc: DisabledCameraHistory
+    ) -> JSONResponse:
+        return DisabledCameraHistoryUnavailableError(
+            str(exc.args[0] if exc.args else "?")
+        ).to_response()
+
+    @app.exception_handler(InvalidDate)
+    async def _handle_invalid_date(_: Request, exc: InvalidDate) -> JSONResponse:
+        return ValidationFailed(
+            "Request payload failed validation.",
+            {"fields": [{"field": "date", "message": sanitize_text(str(exc))}]},
+        ).to_response()
+
+    @app.exception_handler(RecordingUnavailable)
+    async def _handle_recording_unavailable(
+        _: Request, exc: RecordingUnavailable
+    ) -> JSONResponse:
+        # Already sanitised by the playback client; sanitised again on the way
+        # out because this is free text from another process.
+        logger.warning("recording_unavailable error=%s", sanitize_text(str(exc)))
+        return RecordingUnavailableError().to_response()
 
     @app.exception_handler(RequestValidationError)
     async def _handle_request_validation(

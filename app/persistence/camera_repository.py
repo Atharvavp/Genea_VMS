@@ -25,6 +25,7 @@ def _row_to_record(row: sqlite3.Row) -> CameraRecord:
         rtsp_url=row["rtsp_url"],
         mediamtx_path=row["mediamtx_path"],
         enabled=bool(row["enabled"]),
+        recording_enabled=bool(row["recording_enabled"]),
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )
@@ -70,14 +71,16 @@ class CameraRepository:
             with connect(self.db_path) as connection:
                 connection.execute(
                     "INSERT INTO cameras "
-                    "(id, name, rtsp_url, mediamtx_path, enabled, created_at, updated_at) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    "(id, name, rtsp_url, mediamtx_path, enabled, recording_enabled, "
+                    "created_at, updated_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                     (
                         record.id,
                         record.name,
                         record.rtsp_url,
                         record.mediamtx_path,
                         int(record.enabled),
+                        int(record.recording_enabled),
                         record.created_at,
                         record.updated_at,
                     ),
@@ -89,12 +92,13 @@ class CameraRepository:
     def update(self, record: CameraRecord) -> CameraRecord:
         with connect(self.db_path) as connection:
             cursor = connection.execute(
-                "UPDATE cameras SET name = ?, rtsp_url = ?, enabled = ?, updated_at = ? "
-                "WHERE id = ?",
+                "UPDATE cameras SET name = ?, rtsp_url = ?, enabled = ?, "
+                "recording_enabled = ?, updated_at = ? WHERE id = ?",
                 (
                     record.name,
                     record.rtsp_url,
                     int(record.enabled),
+                    int(record.recording_enabled),
                     record.updated_at,
                     record.id,
                 ),

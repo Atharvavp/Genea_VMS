@@ -2,13 +2,20 @@
 
 Division of labour:
 
-* **SQLite** stores what the operator asked for (name, source URL, enabled).
-  Nothing derived is written there.
-* **MediaMTX** holds one pull-always path per enabled camera. It is treated as
-  a cache of the database, rebuilt whenever the two disagree.
-* **This process** keeps camera health in memory only, refreshed from MediaMTX
-  on a short poll. It is never persisted: a stored health value is stale the
-  moment the process stops, and would have to be distrusted at startup anyway.
+* **SQLite** stores what the operator asked for (name, source URL, enabled,
+  recording preference). Nothing derived is written there.
+* **MediaMTX** holds one pull-always path per enabled camera, carrying that
+  camera's recording configuration. It is treated as a cache of the database,
+  rebuilt whenever the two disagree.
+* **This process** keeps camera health and recording state in memory only,
+  refreshed from MediaMTX on a short poll. Neither is persisted: a stored value
+  is stale the moment the process stops, and would have to be distrusted at
+  startup anyway.
+
+Recording state is *inferred*. MediaMTX 1.20.1 exposes no recorder-writer
+health, so RECORDING means "recording is configured and MediaMTX has the
+source", not "bytes are provably reaching the disk". Historical-playback
+failures are a different axis entirely and never reach this module.
 
 Reconciliation is deliberately *not* run on every poll. It runs:
 
@@ -37,8 +44,10 @@ from app.domain.models import (
     CameraHealth,
     CameraHealthState,
     CameraRecord,
+    CameraRecordingStatus,
     CameraUpdate,
     CameraView,
+    RecordingState,
     new_camera_id,
     utcnow_iso,
 )
@@ -49,6 +58,7 @@ from app.services.mediamtx_client import (
     MediaMTXError,
     MediaMTXUnavailable,
     PathRejected,
+    RecordingPathConfig,
 )
 
 logger = logging.getLogger(__name__)
@@ -57,6 +67,9 @@ logger = logging.getLogger(__name__)
 # source can only be reported generically.
 OFFLINE_HINT = "MediaMTX cannot currently read this RTSP source."
 DISABLED_HINT = "Camera is disabled; the VMS is not ingesting it."
+RECORDING_WAITING_HINT = (
+    "Recording is configured; waiting for MediaMTX to obtain the source."
+)
 
 
 class CameraNotFound(KeyError):
@@ -75,6 +88,9 @@ class CameraManager:
         self._client = client
 
         self._health: dict[str, CameraHealth] = {}
+        # Recording-control failures only. A failure to list or play history is
+        # not one of these and must never be recorded here.
+        self._recording_errors: dict[str, str] = {}
         self._mediamtx_available = False
         self._mediamtx_version: str | None = None
         self._last_reconcile_at = 0.0
@@ -83,6 +99,42 @@ class CameraManager:
         self._locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
         self._reconcile_lock = asyncio.Lock()
         self._loop_task: asyncio.Task | None = None
+
+    # --- recording ------------------------------------------------------
+
+    @property
+    def _recording_config(self) -> RecordingPathConfig:
+        """The recording block sent with every managed path, recording or not."""
+        return RecordingPathConfig(
+            record_path=self._settings.record_path_template,
+            segment_duration=self._settings.recording_segment_duration,
+            delete_after=self._settings.record_delete_after_duration,
+        )
+
+    @staticmethod
+    def _should_record(record: CameraRecord) -> bool:
+        return record.enabled and record.recording_enabled
+
+    def _recording_status(self, record: CameraRecord) -> CameraRecordingStatus:
+        """Derive recording state from desired state plus source health.
+
+        Never from historical playback: `/list` or `/get` failing says nothing
+        about whether this camera is being recorded right now.
+        """
+        if not self._should_record(record):
+            return CameraRecordingStatus(state=RecordingState.DISABLED)
+
+        error = self._recording_errors.get(record.id)
+        if error is not None:
+            return CameraRecordingStatus(state=RecordingState.ERROR, last_error=error)
+
+        health = self._health_of(record)
+        if health.state is CameraHealthState.ONLINE:
+            return CameraRecordingStatus(state=RecordingState.RECORDING)
+        return CameraRecordingStatus(
+            state=RecordingState.WAITING,
+            last_error=health.last_error or RECORDING_WAITING_HINT,
+        )
 
     # --- lifecycle ------------------------------------------------------
 
@@ -174,6 +226,7 @@ class CameraManager:
             rtsp_url=payload.rtsp_url,
             mediamtx_path=self._settings.mediamtx_path_for(camera_id),
             enabled=payload.enabled,
+            recording_enabled=payload.recording_enabled,
             created_at=now,
             updated_at=now,
         )
@@ -181,10 +234,11 @@ class CameraManager:
             # Desired state first: a MediaMTX outage must not lose the camera.
             await asyncio.to_thread(self._repo.insert, record)
             logger.info(
-                "camera_created camera_id=%s path=%s enabled=%s source=%s",
+                "camera_created camera_id=%s path=%s enabled=%s recording=%s source=%s",
                 record.id,
                 record.mediamtx_path,
                 record.enabled,
+                record.recording_enabled,
                 sanitize_rtsp_url(record.rtsp_url),
             )
             await self._apply(record)
@@ -197,10 +251,21 @@ class CameraManager:
             name = payload.name if "name" in provided else record.name
             rtsp_url = payload.rtsp_url if "rtsp_url" in provided else record.rtsp_url
             enabled = payload.enabled if "enabled" in provided else record.enabled
+            recording_enabled = (
+                payload.recording_enabled
+                if "recording_enabled" in provided
+                else record.recording_enabled
+            )
 
             source_changed = rtsp_url != record.rtsp_url
             enabled_changed = enabled != record.enabled
-            if name == record.name and not source_changed and not enabled_changed:
+            recording_changed = recording_enabled != record.recording_enabled
+            if (
+                name == record.name
+                and not source_changed
+                and not enabled_changed
+                and not recording_changed
+            ):
                 return self._to_view(record)
 
             updated = CameraRecord(
@@ -211,21 +276,27 @@ class CameraManager:
                 # a camera never invalidates its WebRTC URL.
                 mediamtx_path=record.mediamtx_path,
                 enabled=enabled,
+                # The preference survives a disable, so re-enabling a camera
+                # resumes recording without the operator re-toggling anything.
+                recording_enabled=recording_enabled,
                 created_at=record.created_at,
                 updated_at=utcnow_iso(),
             )
             await asyncio.to_thread(self._repo.update, updated)
             logger.info(
                 "camera_updated camera_id=%s name_changed=%s source_changed=%s "
-                "enabled=%s",
+                "enabled=%s recording=%s",
                 updated.id,
                 name != record.name,
                 source_changed,
                 updated.enabled,
+                updated.recording_enabled,
             )
             # A rename touches nothing in MediaMTX, so unrelated players - and
-            # this camera's own player - keep running.
-            if source_changed or enabled_changed:
+            # this camera's own player - keep running. Toggling recording does
+            # touch MediaMTX, but only to replace the same path in place: live
+            # delivery is configured identically either way.
+            if source_changed or enabled_changed or recording_changed:
                 await self._apply(updated)
             return self._to_view(updated)
 
@@ -234,6 +305,7 @@ class CameraManager:
             record = await self._require(camera_id)
             await asyncio.to_thread(self._repo.delete, camera_id)
             self._health.pop(camera_id, None)
+            self._recording_errors.pop(camera_id, None)
             logger.info("camera_deleted camera_id=%s", camera_id)
             # Best effort: if MediaMTX is down the path is removed by the next
             # reconcile, which deletes managed paths with no enabled owner.
@@ -249,12 +321,37 @@ class CameraManager:
 
     # --- reconciliation -------------------------------------------------
 
-    async def _apply(self, record: CameraRecord) -> None:
-        """Bring MediaMTX in line with one camera's desired state."""
+    async def _apply(self, record: CameraRecord, *, skip_if_current: bool = False) -> None:
+        """Bring MediaMTX in line with one camera's desired state.
+
+        `skip_if_current` is used by the startup reconcile only: replacing a
+        path that is already configured exactly as wanted would briefly
+        interrupt both live delivery and the recorder for nothing, so a backend
+        restart against a healthy MediaMTX leaves working paths alone.
+        """
+        record_flag = self._should_record(record)
         try:
             if record.enabled:
-                await self._client.ensure_path(record.mediamtx_path, record.rtsp_url)
+                if not (
+                    skip_if_current
+                    and await self._client.path_config_matches(
+                        record.mediamtx_path,
+                        record.rtsp_url,
+                        record=record_flag,
+                        recording=self._recording_config,
+                    )
+                ):
+                    # The recording block goes in full every time, including
+                    # when record is false: a partial payload resets recordPath
+                    # and hides this camera's existing history.
+                    await self._client.ensure_path(
+                        record.mediamtx_path,
+                        record.rtsp_url,
+                        record=record_flag,
+                        recording=self._recording_config,
+                    )
                 self._mediamtx_available = True
+                self._recording_errors.pop(record.id, None)
                 # Ask once now so the response carries real state instead of
                 # UNKNOWN; the poll refines it a moment later.
                 runtime = await self._client.get_path(record.mediamtx_path)
@@ -268,6 +365,9 @@ class CameraManager:
             else:
                 await self._client.delete_path(record.mediamtx_path)
                 self._mediamtx_available = True
+                # The preference is kept in SQLite; only the runtime error is
+                # cleared, so re-enabling resumes recording by itself.
+                self._recording_errors.pop(record.id, None)
                 self._set_health(record.id, CameraHealthState.UNKNOWN, DISABLED_HINT)
         except PathRejected as exc:
             # MediaMTX will not take this source at all (it parses URLs more
@@ -278,15 +378,25 @@ class CameraManager:
             logger.warning("camera_source_rejected camera_id=%s", record.id)
             self._mediamtx_available = True
             self._set_health(record.id, CameraHealthState.OFFLINE, message)
+            self._note_recording_error(record, message)
         except MediaMTXError as exc:
             # Keep the desired state; the reconcile loop will retry.
             self._note_mediamtx_error(exc, record.rtsp_url)
-            self._set_health(
-                record.id,
-                CameraHealthState.UNKNOWN,
-                sanitize_text(str(exc), record.rtsp_url),
-            )
+            message = sanitize_text(str(exc), record.rtsp_url)
+            self._set_health(record.id, CameraHealthState.UNKNOWN, message)
+            # A control-plane failure leaves the recording configuration
+            # unapplied, which is a recording error - unlike a playback failure,
+            # which never reaches this module.
+            self._note_recording_error(record, message)
             self._request_reconcile("apply-failed")
+
+    def _note_recording_error(self, record: CameraRecord, message: str) -> None:
+        """Remember that this camera's recording config could not be applied."""
+        if not self._should_record(record):
+            self._recording_errors.pop(record.id, None)
+            return
+        self._recording_errors[record.id] = message
+        logger.warning("recording_config_failed camera_id=%s", record.id)
 
     async def reconcile_all(self, reason: str) -> None:
         """Make MediaMTX's managed paths exactly match the enabled cameras."""
@@ -325,7 +435,9 @@ class CameraManager:
                     current = await asyncio.to_thread(self._repo.get, camera_id)
                     if current is None or not current.enabled:
                         continue
-                    await self._apply(current)
+                    # Only a backend restart may skip: every other reason to
+                    # reconcile is a reason to distrust what MediaMTX holds.
+                    await self._apply(current, skip_if_current=reason == "startup")
 
             self._last_reconcile_at = time.monotonic()
             # A completed pass satisfies whatever was queued when it started -
@@ -411,6 +523,9 @@ class CameraManager:
         for camera_id in list(self._health):
             if camera_id not in known:
                 self._health.pop(camera_id, None)
+        for camera_id in list(self._recording_errors):
+            if camera_id not in known:
+                self._recording_errors.pop(camera_id, None)
 
         if recovered:
             # Never rate-limited: MediaMTX may have restarted empty.
@@ -478,9 +593,11 @@ class CameraManager:
             rtsp_url_display=sanitize_rtsp_url(record.rtsp_url),
             has_credentials=url_has_credentials(record.rtsp_url),
             enabled=record.enabled,
+            recording_enabled=record.recording_enabled,
             mediamtx_path=record.mediamtx_path,
             webrtc_url=self._settings.whep_url(record.mediamtx_path),
             health=self._health_of(record),
+            recording=self._recording_status(record),
             created_at=record.created_at,
             updated_at=record.updated_at,
         )

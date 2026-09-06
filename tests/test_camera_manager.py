@@ -4,16 +4,32 @@ from __future__ import annotations
 
 import pytest
 
-from app.domain.models import CameraCreate, CameraHealthState, CameraUpdate
+from app.domain.models import (
+    CameraCreate,
+    CameraHealthState,
+    CameraUpdate,
+    RecordingState,
+)
 from app.services.camera_manager import CameraManager, CameraNotFound
 from tests.conftest import CREDENTIALED_URL, SIMULATOR_URL
 
 OTHER_URL = "rtsp://host.docker.internal:8554/simulator/dock"
 
 
-async def add(manager: CameraManager, name="Lobby", url=SIMULATOR_URL, enabled=True):
+async def add(
+    manager: CameraManager,
+    name="Lobby",
+    url=SIMULATOR_URL,
+    enabled=True,
+    recording_enabled=False,
+):
     return await manager.create_camera(
-        CameraCreate(name=name, rtsp_url=url, enabled=enabled)
+        CameraCreate(
+            name=name,
+            rtsp_url=url,
+            enabled=enabled,
+            recording_enabled=recording_enabled,
+        )
     )
 
 
@@ -249,7 +265,7 @@ async def test_startup_reconcile_adds_enabled_and_drops_disabled(
 ):
     enabled = await add(manager, name="On")
     disabled = await add(manager, name="Off", url=OTHER_URL, enabled=False)
-    fake_mediamtx.paths.clear()
+    fake_mediamtx.configs.clear()
 
     await manager.reconcile_all("startup")
 
@@ -259,8 +275,8 @@ async def test_startup_reconcile_adds_enabled_and_drops_disabled(
 
 async def test_reconcile_deletes_stale_managed_paths_only(manager, fake_mediamtx):
     view = await add(manager)
-    fake_mediamtx.paths["vms_cam_ffffffff"] = "rtsp://gone/old"  # ours, orphaned
-    fake_mediamtx.paths["simulator_lobby"] = "rtsp://other/x"  # not ours
+    fake_mediamtx.plant_path("vms_cam_ffffffff", "rtsp://gone/old")  # ours, orphaned
+    fake_mediamtx.plant_path("simulator_lobby", "rtsp://other/x")  # not ours
 
     await manager.reconcile_all("test")
 
@@ -299,7 +315,7 @@ async def test_health_poll_detects_a_mediamtx_restart_and_asks_for_a_reconcile(
     manager, fake_mediamtx
 ):
     view = await add(manager)
-    fake_mediamtx.paths.clear()  # MediaMTX restarted and lost its paths
+    fake_mediamtx.configs.clear()  # MediaMTX restarted and lost its paths
 
     await manager.refresh_health()
     assert manager._pending_reconcile is not None
@@ -309,7 +325,7 @@ async def test_health_poll_detects_a_mediamtx_restart_and_asks_for_a_reconcile(
 
 
 async def test_health_poll_detects_an_orphaned_managed_path(manager, fake_mediamtx):
-    fake_mediamtx.paths["vms_cam_ffffffff"] = "rtsp://gone/old"
+    fake_mediamtx.plant_path("vms_cam_ffffffff", "rtsp://gone/old")
     await manager.refresh_health()
     assert manager._pending_reconcile is not None
 
@@ -333,7 +349,7 @@ async def test_drift_reconciles_are_rate_limited(manager, fake_mediamtx, setting
     await add(manager)
     await manager.reconcile_all("startup")
 
-    fake_mediamtx.paths.clear()
+    fake_mediamtx.configs.clear()
     await manager.refresh_health()
 
     # Drift is real, but a reconcile just ran: it waits rather than spinning.
@@ -372,12 +388,227 @@ async def test_reconcile_continues_past_a_rejected_source(manager, fake_mediamtx
     bad = await add(manager, name="Bad", url="rtsp://bad/one")
     good = await add(manager, name="Good", url=SIMULATOR_URL)
     fake_mediamtx.rejected_sources.add("rtsp://bad/one")
-    fake_mediamtx.paths.clear()
+    fake_mediamtx.configs.clear()
 
     await manager.reconcile_all("test")
 
     assert set(fake_mediamtx.paths) == {good.mediamtx_path}
     assert (await manager.get_health(bad.id)).state is CameraHealthState.OFFLINE
+
+
+# --- recording --------------------------------------------------------------
+
+
+async def test_recording_defaults_to_off_and_the_path_says_so(manager, fake_mediamtx):
+    view = await add(manager)
+    assert view.recording_enabled is False
+    assert view.recording.state is RecordingState.DISABLED
+    assert fake_mediamtx.records(view.mediamtx_path) is False
+
+
+async def test_every_managed_path_carries_the_full_recording_block(
+    manager, fake_mediamtx, settings
+):
+    """Even with recording off - a partial payload would hide existing history."""
+    view = await add(manager)
+
+    config = fake_mediamtx.recording_config_of(view.mediamtx_path)
+    assert config is not None
+    assert config.record_path == settings.record_path_template
+    assert config.segment_duration == settings.recording_segment_duration
+    assert config.delete_after == settings.record_delete_after_duration
+    assert config.record_format == "fmp4"
+
+
+async def test_recording_on_marks_the_path_and_infers_recording(manager, fake_mediamtx):
+    fake_mediamtx.reachable_sources.add(SIMULATOR_URL)
+    view = await add(manager, recording_enabled=True)
+
+    assert fake_mediamtx.records(view.mediamtx_path) is True
+    assert view.recording.state is RecordingState.RECORDING
+
+
+async def test_recording_waits_while_the_source_is_missing(manager, fake_mediamtx):
+    """Requested, configured, but MediaMTX has nothing to write yet."""
+    view = await add(manager, url="rtsp://192.0.2.1:554/nope", recording_enabled=True)
+    await manager.refresh_health()
+
+    status = (await manager.get_camera(view.id)).recording
+    assert status.state is RecordingState.WAITING
+    assert status.last_error
+
+
+async def test_toggling_recording_keeps_the_live_path_configured(
+    manager, fake_mediamtx
+):
+    fake_mediamtx.reachable_sources.add(SIMULATOR_URL)
+    view = await add(manager)
+
+    await manager.update_camera(view.id, CameraUpdate(recording_enabled=True))
+    assert fake_mediamtx.records(view.mediamtx_path) is True
+
+    off = await manager.update_camera(view.id, CameraUpdate(recording_enabled=False))
+    assert fake_mediamtx.records(view.mediamtx_path) is False
+    # Live is configured identically either way, and the path is never dropped.
+    assert fake_mediamtx.paths[view.mediamtx_path] == SIMULATOR_URL
+    assert view.mediamtx_path not in fake_mediamtx.calls_for("delete")
+    assert off.webrtc_url == view.webrtc_url
+
+
+async def test_toggling_recording_is_a_no_op_when_unchanged(manager, fake_mediamtx):
+    view = await add(manager, recording_enabled=True)
+    fake_mediamtx.calls.clear()
+    await manager.update_camera(view.id, CameraUpdate(recording_enabled=True))
+    assert fake_mediamtx.calls == []
+
+
+async def test_disable_keeps_the_preference_and_re_enable_resumes(
+    manager, fake_mediamtx
+):
+    """No operator retoggle: the preference outlives the disable."""
+    fake_mediamtx.reachable_sources.add(SIMULATOR_URL)
+    view = await add(manager, recording_enabled=True)
+
+    disabled = await manager.set_enabled(view.id, False)
+    assert disabled.recording_enabled is True
+    assert disabled.recording.state is RecordingState.DISABLED
+    assert fake_mediamtx.paths == {}
+
+    enabled = await manager.set_enabled(view.id, True)
+    assert enabled.recording_enabled is True
+    assert enabled.recording.state is RecordingState.RECORDING
+    assert fake_mediamtx.records(view.mediamtx_path) is True
+
+
+async def test_a_source_loss_and_return_resumes_recording_by_itself(
+    manager, fake_mediamtx
+):
+    fake_mediamtx.reachable_sources.add(SIMULATOR_URL)
+    view = await add(manager, recording_enabled=True)
+    await manager.refresh_health()
+    assert (await manager.get_camera(view.id)).recording.state is RecordingState.RECORDING
+
+    fake_mediamtx.reachable_sources.clear()
+    await manager.refresh_health()
+    assert (await manager.get_camera(view.id)).recording.state is RecordingState.WAITING
+    # The path stays configured, so existing history stays listable.
+    assert view.mediamtx_path in fake_mediamtx.paths
+
+    fake_mediamtx.reachable_sources.add(SIMULATOR_URL)
+    await manager.refresh_health()
+    assert (await manager.get_camera(view.id)).recording.state is RecordingState.RECORDING
+    assert fake_mediamtx.records(view.mediamtx_path) is True
+
+
+async def test_a_control_plane_failure_is_a_recording_error(manager, fake_mediamtx):
+    fake_mediamtx.go_down()
+    view = await add(manager, recording_enabled=True)
+
+    status = (await manager.get_camera(view.id)).recording
+    assert status.state is RecordingState.ERROR
+    assert status.last_error
+
+
+async def test_a_recording_error_clears_once_the_config_is_applied(
+    manager, fake_mediamtx
+):
+    fake_mediamtx.go_down()
+    view = await add(manager, recording_enabled=True)
+    assert (await manager.get_camera(view.id)).recording.state is RecordingState.ERROR
+
+    fake_mediamtx.come_back()
+    fake_mediamtx.reachable_sources.add(SIMULATOR_URL)
+    await manager.reconcile_all("mediamtx-recovered")
+
+    assert (await manager.get_camera(view.id)).recording.state is RecordingState.RECORDING
+
+
+async def test_recording_state_never_reflects_a_playback_failure(
+    manager, fake_mediamtx
+):
+    """Historical playback is a separate axis and never reaches this state."""
+    fake_mediamtx.reachable_sources.add(SIMULATOR_URL)
+    view = await add(manager, recording_enabled=True)
+    await manager.refresh_health()
+
+    fake_mediamtx.playback_up = False
+
+    assert (await manager.get_camera(view.id)).recording.state is RecordingState.RECORDING
+
+
+async def test_reconcile_restores_recording_after_a_mediamtx_restart(
+    manager, fake_mediamtx
+):
+    fake_mediamtx.reachable_sources.add(SIMULATOR_URL)
+    view = await add(manager, recording_enabled=True)
+
+    fake_mediamtx.come_back(wipe_paths=True)  # MediaMTX lost its dynamic paths
+    await manager.refresh_health()
+    await manager.reconcile_all("drift")
+
+    assert fake_mediamtx.records(view.mediamtx_path) is True
+    assert (
+        fake_mediamtx.recording_config_of(view.mediamtx_path).record_path
+        == manager._settings.record_path_template
+    )
+
+
+async def test_a_backend_restart_leaves_a_matching_path_alone(
+    manager, repository, settings, fake_mediamtx
+):
+    """A healthy recorder must not be interrupted just because the VMS restarted."""
+    fake_mediamtx.reachable_sources.add(SIMULATOR_URL)
+    view = await add(manager, recording_enabled=True)
+
+    fresh = CameraManager(settings, repository, fake_mediamtx)
+    fake_mediamtx.calls.clear()
+    await fresh.reconcile_all("startup")
+
+    # Config already matches, so no replacement: live and recording continue.
+    assert fake_mediamtx.calls_for("ensure") == []
+    assert fake_mediamtx.records(view.mediamtx_path) is True
+
+
+async def test_a_backend_restart_reapplies_a_path_that_drifted(
+    manager, repository, settings, fake_mediamtx
+):
+    view = await add(manager, recording_enabled=True)
+    # Something reset the recording config the way a partial replace would.
+    fake_mediamtx.plant_path(view.mediamtx_path, SIMULATOR_URL, record=False)
+
+    fresh = CameraManager(settings, repository, fake_mediamtx)
+    await fresh.reconcile_all("startup")
+
+    assert fake_mediamtx.records(view.mediamtx_path) is True
+
+
+async def test_one_camera_recording_failure_does_not_affect_another(
+    manager, fake_mediamtx
+):
+    good = await add(manager, name="Good", recording_enabled=True)
+    bad = await add(manager, name="Bad", url="rtsp://bad/one", recording_enabled=True)
+    fake_mediamtx.rejected_sources.add("rtsp://bad/one")
+    fake_mediamtx.reachable_sources.add(SIMULATOR_URL)
+    fake_mediamtx.configs.clear()
+
+    await manager.reconcile_all("test")
+
+    assert fake_mediamtx.records(good.mediamtx_path) is True
+    assert (await manager.get_camera(good.id)).recording.state is RecordingState.RECORDING
+    assert (await manager.get_camera(bad.id)).recording.state is RecordingState.ERROR
+
+
+async def test_recording_state_is_not_persisted(manager, repository, fake_mediamtx):
+    """The preference persists; the inferred runtime state does not."""
+    fake_mediamtx.reachable_sources.add(SIMULATOR_URL)
+    view = await add(manager, recording_enabled=True)
+    await manager.refresh_health()
+    assert (await manager.get_camera(view.id)).recording.state is RecordingState.RECORDING
+
+    fresh = CameraManager(manager._settings, repository, fake_mediamtx)
+    reloaded = await fresh.get_camera(view.id)
+    assert reloaded.recording_enabled is True  # desired state survives
+    assert reloaded.recording.state is RecordingState.WAITING  # nothing observed yet
 
 
 # --- report -----------------------------------------------------------------
@@ -412,10 +643,10 @@ async def test_a_reconcile_requested_mid_pass_is_not_swallowed(manager, fake_med
 
     original_apply = manager._apply
 
-    async def failing_apply(record):
+    async def failing_apply(record, **kwargs):
         # Model MediaMTX dropping out for this one camera mid-reconcile.
         manager._request_reconcile("apply-failed")
-        await original_apply(record)
+        await original_apply(record, **kwargs)
 
     manager._apply = failing_apply
     await manager.reconcile_all("startup")
