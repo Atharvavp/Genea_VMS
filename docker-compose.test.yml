@@ -1,0 +1,68 @@
+# Opt-in test overlay. Same project name as the base file.
+name: genea-analytics
+
+# Opt-in test overlay. It brings up private RTSP fixtures on their own network
+# and NEVER joins, reads, or controls the real VMS Compose stack.
+services:
+  analytics:
+    profiles: ["never-started-by-the-test-overlay"]
+
+  mediamtx:
+    image: bluenviron/mediamtx:1.20.1
+    volumes:
+      - ./tests/fixtures/mediamtx.yml:/mediamtx.yml:ro
+    networks:
+      - analytics-test
+    healthcheck:
+      test: ["CMD", "/mediamtx", "--version"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  publisher:
+    build:
+      context: ./tests/fixtures/publisher
+    depends_on:
+      - mediamtx
+    environment:
+      PUBLISH_BASE: rtsp://mediamtx:8554
+    networks:
+      - analytics-test
+
+  tests:
+    build:
+      context: .
+      target: tests
+    environment:
+      ANALYTICS_DATA_DIR: /data
+      ANALYTICS_DB_PATH: /data/analytics.db
+      ANALYTICS_EVENT_DIR: /data/events
+      ANALYTICS_MODEL_PATH: /opt/models/yolo11n.pt
+      ANALYTICS_TORCH_THREADS: "2"
+      CURSOR_SIGNING_KEY: test-only-cursor-signing-key-not-a-secret-0123
+      TEST_RTSP_BASE: rtsp://mediamtx:8554
+      TEST_PUBLISHER_URL: http://publisher:8000
+      PYTHONPATH: /srv/analytics
+      PYTEST_ADDOPTS: -p no:cacheprovider
+      HOME: /tmp
+    volumes:
+      # The working tree is mounted so a test edit does not require an image
+      # rebuild. The image also COPYs tests/, so it stays self-contained.
+      - ./app:/srv/analytics/app:ro
+      - ./tests:/srv/analytics/tests:ro
+      - ./scripts:/srv/analytics/scripts:ro
+      - ./pyproject.toml:/srv/analytics/pyproject.toml:ro
+      - analytics-test-data:/data
+    depends_on:
+      - mediamtx
+      - publisher
+    networks:
+      - analytics-test
+    init: true
+
+networks:
+  analytics-test:
+    driver: bridge
+
+volumes:
+  analytics-test-data:
