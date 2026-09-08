@@ -40,50 +40,46 @@ interrupt live view or recording.
 ## Architecture at a glance
 
 ```mermaid
-flowchart LR
-  subgraph C1["Component 1 · RTSP Simulator (:8080)"]
-    SRC["Video file<br/>upload or mounted sample"]
-    FFM["FFmpeg publisher"]
-    M1["MediaMTX"]
-    SRC --> FFM --> M1
+flowchart TB
+  subgraph C1["Component 1 · RTSP Simulator :8080"]
+    direction LR
+    SRC["Video file<br/>upload or mounted sample"] --> FFM["FFmpeg publisher"] --> M1["MediaMTX"]
   end
 
-  subgraph VMS["Components 2 + 3 · VMS (:8090)"]
+  subgraph VMS["Components 2 + 3 · VMS :8090"]
+    direction LR
     API2["FastAPI<br/>cameras · recordings"]
-    M2["MediaMTX<br/>ingest · WebRTC · record · playback"]
+    M2["MediaMTX<br/>ingest · WebRTC<br/>record · playback"]
     REC[("genea-vms-recordings")]
     M2 --> REC
   end
 
-  subgraph C4["Component 4 · Video Analytics (:8100)"]
-    GST["GStreamer<br/>H.264 decode"]
-    YOLO["YOLO11n"]
-    BT["ByteTrack"]
-    LINE["Line crossing"]
-    EVT[("SQLite + JPEG<br/>events")]
-    GST --> YOLO --> BT --> LINE --> EVT
-  end
-
-  subgraph C5["Component 5 · Semantic Search (:8200)"]
-    POLL["Polling and<br/>reconciliation"]
-    SIG["SigLIP embeddings"]
-    IDX[("SQLite vectors +<br/>NumPy exact index")]
-    POLL --> SIG --> IDX
-  end
-
   BROWSER(["Browser"])
 
-  M1 ==>|"RTSP/TCP :8554"| M2
-  M2 ==>|"WHEP/WebRTC :8889 + ICE 8189/udp"| BROWSER
-  M2 ==>|"redistributed RTSP :8555"| GST
-  REC ==>|"playback :9996"| BROWSER
+  subgraph C4["Component 4 · Video Analytics :8100"]
+    direction TB
+    GST["GStreamer<br/>H.264 decode"] --> YOLO["YOLO11n detection"]
+    YOLO --> BT["ByteTrack tracking"] --> LINE["Line crossing"]
+    LINE --> EVT[("SQLite + JPEG<br/>events")]
+  end
 
-  API2 -.->|"path control :9997 · private"| M2
+  subgraph C5["Component 5 · Semantic Search :8200"]
+    direction TB
+    POLL["Polling and<br/>reconciliation"] --> SIG["SigLIP embeddings"]
+    SIG --> IDX[("SQLite vectors +<br/>NumPy exact index")]
+  end
+
+  M1 ==>|"RTSP/TCP :8554"| M2
+  M2 ==>|"WHEP/WebRTC :8889<br/>ICE 8189/udp"| BROWSER
+  REC ==>|"playback :9996"| BROWSER
+  M2 ==>|"redistributed RTSP :8555"| GST
+
+  API2 -.->|"path control :9997<br/>private"| M2
   EVT -.->|"public HTTP :8100"| POLL
   IDX -.->|"UI and API :8200"| BROWSER
-  BROWSER -.->|"control APIs :8080 :8090 :8100 :8200"| API2
+  BROWSER -.->|"control APIs<br/>:8080 :8090 :8100 :8200"| API2
 
-  classDef media stroke-width:2px
+  classDef media stroke-width:3px
   class M1,M2,GST media
 ```
 

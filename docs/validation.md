@@ -336,9 +336,12 @@ deliberately not re-run because only Markdown changed.
 | Private control API | `curl http://localhost:9997/...` | Connection refused — correctly unreachable from the host |
 | C5 index status | `GET /api/index/status` | `known/searchable/complete = 486/486/486`, `crop_indexed=486`, `frame_indexed=486`, `index_revision=972`, `backfill_complete=true`, `upstream_state=available` — matching the recorded acceptance state exactly, which also re-confirms volume persistence |
 | Bundled sample media | `ffprobe` | `h264`, 320×240, 10.0 s — confirming it cannot contain a detectable person or vehicle |
+| `./scripts/status.sh` | Executed against the running stacks | All four "application ready (HTTP 200)", VMS MediaMTX reachable, C5 upstream available; **exit 0** |
+| `./scripts/smoke-test.sh` | Executed against the running stacks | **38 passed, 0 failed** — the documented count re-confirmed in Part 2, not copied forward |
+| `./scripts/start-all.sh`, `./scripts/stop-all.sh` | `bash -n` syntax check and full source review; **not re-executed** | Their behaviour is the recorded Part 1 acceptance evidence above |
 | UI labels, states and routes | Read directly from the static UIs, domain models and API routers | Every label, state name and endpoint used in the demo guide exists in the code |
-| Documentation links | Relative-link extraction and resolution across all reviewer and service documents | All resolve |
-| Mermaid | Syntax review and render check of both diagrams | Both render |
+| Documentation links | Relative-link and heading-anchor resolution across all four reviewer documents and all four service READMEs | 86 links checked, all resolve |
+| Mermaid | Both diagrams extracted and **rendered with the Mermaid CLI** (ephemeral container image; nothing added to the repository), then inspected as PNG for clipped labels, contrast and readability | Both render; the primary diagram was re-laid out from `LR` to `TB` after the first render proved too wide to read |
 | Terminology and safety | Scans for stale references, private media paths, developer-local absolute paths, secrets and runtime artifacts | Clean |
 
 **Not re-run in Part 2:** the automated test matrix, the browser E2E tier, the
