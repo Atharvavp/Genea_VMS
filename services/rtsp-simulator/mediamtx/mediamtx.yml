@@ -1,0 +1,19 @@
+# MediaMTX configuration for the RTSP Camera Simulator.
+# Only RTSP is needed in V1; every other protocol stays disabled.
+logLevel: info
+logDestinations: [stdout]
+
+rtsp: true
+rtspAddress: :8554
+# TCP only: UDP RTP/RTCP does not survive ordinary Docker port mapping.
+rtspTransports: [tcp]
+
+rtmp: false
+hls: false
+webrtc: false
+srt: false
+
+# Accept any path published by the simulator's FFmpeg processes
+# (paths look like /simulator/<stream_path>). No per-camera config rewrite.
+paths:
+  all_others:
