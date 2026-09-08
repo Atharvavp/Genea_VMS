@@ -1,0 +1,32 @@
+# Top-level runtime dependencies for Component 5, frozen by PLAN section 8.2.
+# Compile with:
+#   pip-compile --generate-hashes --allow-unsafe --output-file=runtime.lock runtime.in
+#
+# torch and torchvision are deliberately absent: they are installed first from
+# requirements/torch-cpu.txt against the CPU wheel index. Their own dependencies
+# are listed below so this file still resolves and hashes them.
+fastapi==0.116.1
+uvicorn==0.35.0
+pydantic==2.13.5
+pydantic-settings==2.10.1
+httpx==0.28.1
+python-multipart==0.0.20
+numpy==2.5.3
+Pillow==11.3.0
+
+# Embedding runtime.
+transformers==4.57.6
+tokenizers==0.22.2
+huggingface-hub==0.36.2
+safetensors==0.7.0
+sentencepiece==0.2.1
+protobuf==6.32.1
+
+# Dependencies of the separately installed CPU torch/torchvision wheels.
+filelock==3.32.5
+sympy==1.14.0
+networkx==3.6.1
+jinja2==3.1.6
+fsspec==2026.7.0
+typing-extensions==4.16.0
+setuptools==84.0.0

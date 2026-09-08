@@ -1,0 +1,51 @@
+# Component 5 runs as its own Compose project on its own volume. The explicit
+# name keeps it separate from the VMS and analytics stacks, which live in
+# directories of the same basename: without it Compose would treat their
+# containers as orphans of this project.
+name: genea-semantic-search
+
+services:
+  semantic-search:
+    build:
+      context: .
+      target: final
+    ports:
+      - "${SEMANTIC_HTTP_PORT:-8200}:8200"
+    environment:
+      SEMANTIC_DATA_DIR: /data
+      SEMANTIC_DB_PATH: /data/semantic.db
+      SEMANTIC_MODEL_DIR: /opt/models/siglip
+      SEMANTIC_TORCH_THREADS: ${SEMANTIC_TORCH_THREADS:-2}
+      SEMANTIC_INDEX_BATCH_SIZE: ${SEMANTIC_INDEX_BATCH_SIZE:-4}
+      SEMANTIC_POLL_INTERVAL_SECONDS: ${SEMANTIC_POLL_INTERVAL_SECONDS:-10}
+      SEMANTIC_OVERLAP_SECONDS: ${SEMANTIC_OVERLAP_SECONDS:-300}
+      SEMANTIC_FULL_RECONCILE_SECONDS: ${SEMANTIC_FULL_RECONCILE_SECONDS:-21600}
+      SEMANTIC_LOG_LEVEL: ${SEMANTIC_LOG_LEVEL:-INFO}
+      # The ONLY upstream Component 5 contacts. No VMS, MediaMTX, RTSP, or
+      # Component 4 database/filesystem access exists anywhere in this service.
+      COMPONENT4_API_BASE_URL: ${COMPONENT4_API_BASE_URL:-http://host.docker.internal:8100}
+    volumes:
+      - semantic-search-data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    stop_grace_period: 30s
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test:
+        - CMD
+        - /opt/venv/bin/python
+        - scripts/validate_runtime.py
+        - --health-url
+        - http://127.0.0.1:8200/health
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
+
+volumes:
+  semantic-search-data:
