@@ -1,5 +1,19 @@
 # RTSP Camera Simulator V1 — Engineering Handoff
 
+> **Historical document — preserved as audit evidence, not re-validated here.**
+> This handoff records the implementation and validation of RTSP Camera Simulator (Component 1) as it was
+> carried out in its own branch and working clone. Every command, count, measurement
+> and acceptance result below was executed **there**, before the unified-submission
+> refactor, and is reproduced unchanged. It is **not** a claim about the unified
+> repository.
+>
+> The implementation it describes now lives at `services/rtsp-simulator/`, imported byte-identically
+> from `feat/rtsp_simulation` at `a6e02da3e029c742a4d5c2fe92e1fe1de85011f7`.
+> Validation actually executed against the unified repository is recorded separately in
+> [HANDOFF_unified_submission.md](HANDOFF_unified_submission.md).
+
+---
+
 **Repository:** `Genea_VMS`
 **Component:** RTSP Camera Simulator (V1)
 **Status:** Implemented, tested, and verified end-to-end in Docker
@@ -1019,5 +1033,5 @@ pad=1280:720:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=15 \
 
 ---
 
-*End of handoff. The user-facing guide is in [README.md](README.md); the original
+*End of handoff. The user-facing guide is in [README.md](../../services/rtsp-simulator/README.md); the original
 requirements are in `RTSP Camera Simulator V1 Plan.md`.*
