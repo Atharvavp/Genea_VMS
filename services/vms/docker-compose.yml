@@ -1,0 +1,62 @@
+name: genea-vms
+
+services:
+  vms-mediamtx:
+    image: bluenviron/mediamtx:1.20.1
+    container_name: vms-mediamtx
+    restart: unless-stopped
+    ports:
+      - "${VMS_RTSP_PORT:-8555}:8554"
+      - "${VMS_WEBRTC_HTTP_PORT:-8889}:8889"
+      - "${VMS_WEBRTC_ICE_UDP_PORT:-8189}:8189/udp"
+      # Historical playback: the browser fetches recorded media from here.
+      - "${VMS_PLAYBACK_HTTP_PORT:-9996}:9996"
+      # 9997 (Control API) is intentionally NOT published: it accepts
+      # unauthenticated calls from the compose network only.
+    volumes:
+      - ./mediamtx/mediamtx.yml:/mediamtx.yml:ro
+      # Recording storage. MediaMTX is the only writer and the only reader;
+      # the VMS container deliberately does not mount this. Set
+      # RECORDING_STORAGE_HOST_PATH to a host directory to inspect the files.
+      - ${RECORDING_STORAGE_HOST_PATH:-vms-recordings}:/recordings
+    environment:
+      # Must match the host port so ICE candidates are reachable from the browser.
+      MTX_WEBRTCLOCALUDPADDRESS: ":${VMS_WEBRTC_ICE_UDP_PORT:-8189}"
+      MTX_WEBRTCADDITIONALHOSTS: "${PUBLIC_WEBRTC_HOST:-localhost}"
+
+  vms:
+    build: .
+    container_name: vms
+    restart: unless-stopped
+    ports:
+      - "${VMS_HTTP_PORT:-8090}:8090"
+    depends_on:
+      - vms-mediamtx
+    environment:
+      MEDIAMTX_API_URL: ${MEDIAMTX_API_URL:-http://vms-mediamtx:9997}
+      MEDIAMTX_PLAYBACK_URL: ${MEDIAMTX_PLAYBACK_URL:-http://vms-mediamtx:9996}
+      PUBLIC_WEBRTC_HOST: ${PUBLIC_WEBRTC_HOST:-localhost}
+      PUBLIC_WEBRTC_PORT: ${VMS_WEBRTC_HTTP_PORT:-8889}
+      # What the browser is told to fetch recordings from. Defaults to the
+      # WebRTC host so both advertised addresses move together.
+      PUBLIC_PLAYBACK_HOST: ${PUBLIC_PLAYBACK_HOST:-${PUBLIC_WEBRTC_HOST:-localhost}}
+      PUBLIC_PLAYBACK_PORT: ${VMS_PLAYBACK_HTTP_PORT:-9996}
+      RECORDING_STORAGE_PATH: ${RECORDING_STORAGE_PATH:-/recordings}
+      RECORDING_SEGMENT_DURATION: ${RECORDING_SEGMENT_DURATION:-5m}
+      RECORDING_RETENTION_HOURS: ${RECORDING_RETENTION_HOURS:-24}
+      DATABASE_PATH: /data/vms.db
+      CAMERA_HEALTH_POLL_SECONDS: ${CAMERA_HEALTH_POLL_SECONDS:-2.0}
+      RECONCILE_MIN_INTERVAL_SECONDS: ${RECONCILE_MIN_INTERVAL_SECONDS:-10.0}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - vms-data:/data
+    # Docker Desktop resolves host.docker.internal automatically; this keeps
+    # `rtsp://host.docker.internal:8554/...` working on plain Linux too.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  vms-data:
+    name: genea-vms-data
+  vms-recordings:
+    name: genea-vms-recordings

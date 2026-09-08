@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Genea VMS — Live View &amp; Recording</title>
+  <link rel="stylesheet" href="/static/styles.css?v=recording-20260906" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>📹</text></svg>" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-inner">
+      <div>
+        <h1>Genea VMS — Live View &amp; Recording</h1>
+        <p class="subtitle">RTSP cameras, ingested by MediaMTX, played live over WebRTC and recorded to disk.</p>
+      </div>
+      <div class="header-actions">
+        <span id="health-badge" class="health" title="VMS health">checking…</span>
+        <button id="add-camera" class="btn btn-primary" type="button">Add Camera</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div id="banner" class="banner" hidden></div>
+
+    <div id="empty-state" class="empty" hidden>
+      <h2>No cameras yet</h2>
+      <p>Add an RTSP camera and it will be ingested and played here.</p>
+    </div>
+
+    <div id="camera-grid" class="camera-grid"></div>
+  </main>
+
+  <!-- Focused view: one camera, larger. Its own player, so the grid tiles for
+       the other cameras keep running untouched. -->
+  <div id="focus-modal" class="modal" hidden aria-hidden="true">
+    <div class="modal-card modal-card-wide" role="dialog" aria-modal="true" aria-labelledby="focus-title">
+      <div class="modal-head">
+        <div>
+          <h2 id="focus-title">Camera</h2>
+          <p id="focus-subtitle" class="hint"></p>
+        </div>
+        <button id="focus-close" class="btn-icon" type="button" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="video-frame video-frame-large">
+          <video id="focus-video" muted autoplay playsinline></video>
+          <div id="focus-overlay" class="video-overlay"></div>
+        </div>
+        <div class="focus-meta">
+          <span id="focus-health" class="badge">UNKNOWN</span>
+          <span id="focus-player" class="badge badge-player">IDLE</span>
+          <span id="focus-recording" class="badge badge-recording">REC OFF</span>
+          <code id="focus-url"></code>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recordings: one camera, one UTC day. The media element points straight at
+       MediaMTX's playback server; no recorded byte passes through the VMS. -->
+  <div id="recordings-modal" class="modal" hidden aria-hidden="true">
+    <div class="modal-card modal-card-wide" role="dialog" aria-modal="true" aria-labelledby="recordings-title">
+      <div class="modal-head">
+        <div>
+          <h2 id="recordings-title">Recordings</h2>
+          <p id="recordings-subtitle" class="hint"></p>
+        </div>
+        <button id="recordings-close" class="btn-icon" type="button" aria-label="Close">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <label class="date-picker">
+          Date (UTC)
+          <input type="date" id="recordings-date" />
+        </label>
+
+        <div id="recordings-loading" class="recordings-state" hidden>Loading recordings…</div>
+        <div id="recordings-empty" class="recordings-state" hidden>
+          No recordings for this day.
+        </div>
+        <div id="recordings-error" class="form-error" hidden></div>
+
+        <div id="recordings-list" class="recordings-list" hidden></div>
+
+        <div id="recordings-player" class="video-frame video-frame-large" hidden>
+          <!-- Native controls only: play/pause, seek, fullscreen. -->
+          <video id="recordings-video" controls preload="metadata" playsinline></video>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add / edit dialog -->
+  <div id="modal" class="modal" hidden aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-head">
+        <h2 id="modal-title">Add Camera</h2>
+        <button id="modal-close" class="btn-icon" type="button" aria-label="Close">&times;</button>
+      </div>
+
+      <form id="camera-form" class="modal-body">
+        <div id="form-error" class="form-error" hidden></div>
+
+        <label>
+          Name
+          <input type="text" name="name" maxlength="100" required placeholder="Parking Entrance" />
+        </label>
+
+        <label>
+          RTSP URL
+          <input type="text" name="rtsp_url" id="rtsp-url-input"
+                 placeholder="rtsp://host.docker.internal:8554/simulator/parking-entrance" />
+        </label>
+        <p class="hint">
+          Any RTSP source: a simulator stream, an IP camera, another RTSP server.
+          The VMS pulls it into its own MediaMTX and serves it over WebRTC.
+        </p>
+        <p id="keep-source-hint" class="hint hint-strong" hidden>
+          This camera's URL contains credentials, so it is not shown back.
+          Leave the field empty to keep the current source.
+        </p>
+
+        <label class="checkbox">
+          <input type="checkbox" name="enabled" id="enabled-input" checked />
+          Enabled — the VMS ingests this camera
+        </label>
+
+        <label class="checkbox">
+          <input type="checkbox" name="recording_enabled" id="recording-enabled-input" />
+          Record continuously — MediaMTX writes this camera to disk
+        </label>
+        <p class="hint">
+          Off by default. Recording only runs while the camera is enabled, but the
+          preference is kept, so a disabled camera resumes recording when enabled again.
+        </p>
+
+        <div class="modal-actions">
+          <button type="button" id="modal-cancel" class="btn">Cancel</button>
+          <button type="submit" id="modal-submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="/static/vendor/mediamtx-reader.js?v=mediamtx-1.20.1"></script>
+  <script src="/static/app.js?v=recording-20260906"></script>
+</body>
+</html>

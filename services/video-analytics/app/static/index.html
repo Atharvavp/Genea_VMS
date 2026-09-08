@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Genea Analytics</title>
+  <link rel="stylesheet" href="/static/styles.css?v=1">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+
+<header class="app-header">
+  <h1>Genea Analytics</h1>
+  <nav aria-label="Primary">
+    <a href="#/cameras" data-nav="cameras">Cameras</a>
+    <a href="#/events" data-nav="events">Events</a>
+  </nav>
+  <p class="header-status" id="header-status" role="status" aria-live="polite"></p>
+</header>
+
+<div class="banner" id="connection-banner" role="alert" hidden>
+  <span id="connection-banner-text"></span>
+</div>
+
+<main id="main">
+
+  <!-- ==================== Cameras ==================== -->
+  <section id="view-cameras" class="view" hidden>
+    <div class="view-head">
+      <h2>Analytics cameras</h2>
+      <div class="view-actions">
+        <span class="updated" id="cameras-updated"></span>
+        <button type="button" id="add-camera">Add camera</button>
+      </div>
+    </div>
+
+    <p class="empty" id="cameras-empty" hidden>
+      No analytics cameras yet. Copy a camera id (<code>cam_xxxxxxxx</code>) from the
+      VMS, then add it here with an RTSP URL that is reachable
+      <strong>from the analytics container</strong>, for example
+      <code>rtsp://host.docker.internal:8555/vms_cam_xxxxxxxx</code>.
+      Component 4 never discovers VMS cameras by itself.
+    </p>
+
+    <div class="card-grid" id="camera-list"></div>
+  </section>
+
+  <!-- ==================== Configure ==================== -->
+  <section id="view-configure" class="view" hidden>
+    <div class="view-head">
+      <h2 id="configure-title">Configure line</h2>
+      <div class="view-actions">
+        <a class="button-link" href="#/cameras">Back to cameras</a>
+      </div>
+    </div>
+
+    <div class="configure-layout">
+      <div class="snapshot-panel">
+        <div class="snapshot-frame" id="snapshot-frame">
+          <img id="snapshot-image" alt="Latest decoded frame from this camera">
+          <canvas id="line-canvas" aria-label="Line drawing overlay"></canvas>
+        </div>
+        <p class="snapshot-status" id="snapshot-status" role="status" aria-live="polite"></p>
+        <p class="legend">
+          Drag on the image to draw <strong>A</strong> then <strong>B</strong>; drag either
+          endpoint to adjust. <strong>A_TO_B</strong> means movement from the
+          <em>A side</em> half-plane to the <em>B side</em> half-plane &mdash; not movement
+          from endpoint A towards endpoint B.
+        </p>
+      </div>
+
+      <form class="line-form" id="line-form" novalidate>
+        <h3>Line</h3>
+        <p class="form-row">
+          <label for="line-name">Name</label>
+          <input type="text" id="line-name" name="name" maxlength="100" required>
+        </p>
+        <fieldset>
+          <legend>Endpoint A</legend>
+          <label for="line-ax">A x</label>
+          <input type="number" id="line-ax" step="0.001" min="0" max="1" required>
+          <label for="line-ay">A y</label>
+          <input type="number" id="line-ay" step="0.001" min="0" max="1" required>
+        </fieldset>
+        <fieldset>
+          <legend>Endpoint B</legend>
+          <label for="line-bx">B x</label>
+          <input type="number" id="line-bx" step="0.001" min="0" max="1" required>
+          <label for="line-by">B y</label>
+          <input type="number" id="line-by" step="0.001" min="0" max="1" required>
+        </fieldset>
+        <p class="form-row">
+          <label for="line-direction">Allowed direction</label>
+          <select id="line-direction">
+            <option value="A_TO_B">A_TO_B (A side &rarr; B side)</option>
+            <option value="B_TO_A">B_TO_A (B side &rarr; A side)</option>
+            <option value="BOTH">BOTH</option>
+          </select>
+        </p>
+        <p class="form-row checkbox-row">
+          <input type="checkbox" id="line-enabled" checked>
+          <label for="line-enabled">Line enabled</label>
+        </p>
+        <p class="form-error" id="line-error" role="alert" hidden></p>
+        <p class="form-note" id="line-note" role="status" aria-live="polite" hidden></p>
+        <div class="form-actions">
+          <button type="submit" id="line-save">Save line</button>
+          <button type="button" id="line-reset">Reset draft</button>
+          <button type="button" id="line-redraw">Redraw</button>
+          <button type="button" id="line-delete" class="danger">Delete line</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- ==================== Events ==================== -->
+  <section id="view-events" class="view" hidden>
+    <div class="view-head">
+      <h2>Events</h2>
+      <div class="view-actions">
+        <button type="button" id="events-refresh">Refresh</button>
+      </div>
+    </div>
+
+    <form class="filters" id="event-filters">
+      <p class="form-row">
+        <label for="filter-camera">Camera</label>
+        <select id="filter-camera"><option value="">All cameras</option></select>
+      </p>
+      <p class="form-row">
+        <label for="filter-category">Category</label>
+        <select id="filter-category">
+          <option value="">Any</option>
+          <option value="person">person</option>
+          <option value="vehicle">vehicle</option>
+        </select>
+      </p>
+      <p class="form-row">
+        <label for="filter-class">Class</label>
+        <select id="filter-class">
+          <option value="">Any</option>
+          <option value="person">person</option>
+          <option value="bicycle">bicycle</option>
+          <option value="car">car</option>
+          <option value="motorcycle">motorcycle</option>
+          <option value="bus">bus</option>
+          <option value="truck">truck</option>
+        </select>
+      </p>
+      <p class="form-row">
+        <label for="filter-direction">Direction</label>
+        <select id="filter-direction">
+          <option value="">Any</option>
+          <option value="A_TO_B">A_TO_B</option>
+          <option value="B_TO_A">B_TO_A</option>
+        </select>
+      </p>
+      <p class="form-row">
+        <label for="filter-from">From (UTC)</label>
+        <input type="datetime-local" id="filter-from">
+      </p>
+      <p class="form-row">
+        <label for="filter-to">To (UTC)</label>
+        <input type="datetime-local" id="filter-to">
+      </p>
+      <div class="form-actions">
+        <button type="submit">Apply filters</button>
+        <button type="button" id="filters-clear">Clear</button>
+      </div>
+    </form>
+
+    <p class="form-error" id="events-error" role="alert" hidden></p>
+
+    <div class="events-layout">
+      <div class="event-list-panel">
+        <p class="empty" id="events-empty" hidden>No events match these filters.</p>
+        <ul class="event-list" id="event-list"></ul>
+        <button type="button" id="events-more" hidden>Load more</button>
+      </div>
+
+      <aside class="event-detail" id="event-detail" hidden aria-label="Event detail">
+        <h3 id="detail-title">Event</h3>
+        <img id="detail-frame" alt="Full frame captured when the crossing was detected">
+        <p class="detail-note" id="detail-image-note" hidden></p>
+        <dl id="detail-fields"></dl>
+        <div class="form-actions">
+          <button type="button" id="detail-recording">View recording</button>
+        </div>
+        <p class="detail-note" id="recording-status" role="status" aria-live="polite" hidden></p>
+      </aside>
+    </div>
+  </section>
+</main>
+
+<!-- ==================== Camera dialog ==================== -->
+<div class="modal" id="camera-modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="camera-modal-title">
+    <h2 id="camera-modal-title">Add analytics camera</h2>
+    <form id="camera-form" novalidate>
+      <p class="form-row">
+        <label for="camera-vms-id">VMS camera id</label>
+        <input type="text" id="camera-vms-id" placeholder="cam_0123abcd" required>
+      </p>
+      <p class="form-row">
+        <label for="camera-name">Name</label>
+        <input type="text" id="camera-name" maxlength="100" required>
+      </p>
+      <p class="form-row">
+        <label for="camera-rtsp">RTSP URL</label>
+        <input type="text" id="camera-rtsp"
+               placeholder="rtsp://host.docker.internal:8555/vms_cam_0123abcd" required>
+        <span class="hint">Must be reachable from the analytics container. Credentials
+          are accepted and are never shown again.</span>
+      </p>
+      <p class="form-row">
+        <label for="camera-fps">Inference FPS (1&ndash;10)</label>
+        <input type="number" id="camera-fps" step="0.5" min="1" max="10" value="5">
+      </p>
+      <p class="form-row">
+        <label for="camera-confidence">Confidence (0.10&ndash;0.95)</label>
+        <input type="number" id="camera-confidence" step="0.05" min="0.1" max="0.95" value="0.25">
+      </p>
+      <fieldset>
+        <legend>Object categories</legend>
+        <p class="checkbox-row">
+          <input type="checkbox" id="camera-person" checked>
+          <label for="camera-person">person</label>
+        </p>
+        <p class="checkbox-row">
+          <input type="checkbox" id="camera-vehicle" checked>
+          <label for="camera-vehicle">vehicle</label>
+        </p>
+      </fieldset>
+      <p class="form-row checkbox-row">
+        <input type="checkbox" id="camera-enabled" checked>
+        <label for="camera-enabled">Enabled</label>
+      </p>
+      <p class="form-error" id="camera-error" role="alert" hidden></p>
+      <div class="form-actions">
+        <button type="submit" id="camera-submit">Save</button>
+        <button type="button" id="camera-cancel">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ==================== Confirm dialog ==================== -->
+<div class="modal" id="confirm-modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+    <h2 id="confirm-title">Confirm</h2>
+    <p id="confirm-text"></p>
+    <div class="form-actions">
+      <button type="button" id="confirm-yes" class="danger">Confirm</button>
+      <button type="button" id="confirm-no">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script src="/static/app.js?v=1" type="module"></script>
+</body>
+</html>

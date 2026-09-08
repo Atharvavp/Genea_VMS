@@ -1,0 +1,15 @@
+.git
+.gitignore
+.venv
+venv
+__pycache__
+*.py[cod]
+.pytest_cache
+.env
+data
+*.db
+*.db-wal
+*.db-shm
+PLAN_component_4.md
+HANDOFF_component_4.md
+.DS_Store

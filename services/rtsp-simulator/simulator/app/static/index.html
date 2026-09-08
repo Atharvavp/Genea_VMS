@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RTSP Camera Simulator</title>
+  <link rel="stylesheet" href="/static/styles.css?v=modal-visibility-20260904" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🎥</text></svg>" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-inner">
+      <div>
+        <h1>RTSP Camera Simulator</h1>
+        <p class="subtitle">Publish video files as virtual RTSP cameras.</p>
+      </div>
+      <div class="header-actions">
+        <span id="health-badge" class="health" title="Simulator health">checking…</span>
+        <button id="add-camera" class="btn btn-primary">Add Camera</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div id="banner" class="banner" hidden></div>
+    <div id="empty-state" class="empty" hidden>
+      <h2>No cameras yet</h2>
+      <p>Add a camera, upload a video file, and it will be published over RTSP.</p>
+    </div>
+    <div id="camera-list" class="camera-list"></div>
+  </main>
+
+  <!-- Add / edit dialog -->
+  <div id="modal" class="modal" hidden aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-head">
+        <h2 id="modal-title">Add Camera</h2>
+        <button id="modal-close" class="btn-icon" aria-label="Close">&times;</button>
+      </div>
+
+      <form id="camera-form" class="modal-body">
+        <div id="form-error" class="form-error" hidden></div>
+
+        <fieldset>
+          <legend>Camera</legend>
+          <label>
+            Name
+            <input type="text" name="name" maxlength="100" required placeholder="Parking Entrance" />
+          </label>
+          <label>
+            Stream path <span class="hint">optional — generated from the name</span>
+            <input type="text" name="stream_path" pattern="[a-z0-9][a-z0-9_\-]{0,63}"
+                   placeholder="parking-entrance" />
+          </label>
+          <p class="hint">RTSP URL will be <code id="url-preview">rtsp://…</code></p>
+        </fieldset>
+
+        <fieldset>
+          <legend>Source video</legend>
+          <div class="source-tabs">
+            <label class="radio">
+              <input type="radio" name="source_kind" value="upload" checked /> Upload a file
+            </label>
+            <label class="radio">
+              <input type="radio" name="source_kind" value="local" /> Use a mounted file
+            </label>
+            <label class="radio" id="keep-source-option" hidden>
+              <input type="radio" name="source_kind" value="keep" /> Keep current source
+            </label>
+          </div>
+
+          <div id="source-upload" class="source-panel">
+            <div id="dropzone" class="dropzone">
+              <p><strong>Drag &amp; drop</strong> a video here, or</p>
+              <button type="button" id="browse" class="btn">Browse…</button>
+              <input type="file" id="file-input" accept="video/*,.mp4,.mkv,.mov,.avi,.m4v,.webm" hidden />
+              <p id="file-name" class="file-name">No file selected</p>
+              <p class="hint">Allowed: .mp4 .mkv .mov .avi .m4v .webm</p>
+            </div>
+          </div>
+
+          <div id="source-local" class="source-panel" hidden>
+            <label>
+              Mounted file
+              <select name="local_path" id="local-select"></select>
+            </label>
+            <p class="hint">
+              These are files inside the container's mounted source directory
+              (<code id="local-dir">/data/local-sources</code>, mapped from
+              <code>./sample-media</code> on the host). Arbitrary host paths are rejected.
+            </p>
+            <label>
+              Or type a path relative to that directory
+              <input type="text" name="local_path_text" placeholder="parking.mp4" />
+            </label>
+          </div>
+
+          <div id="keep-source-info" class="hint" hidden></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Virtual camera output <span class="hint">how the RTSP stream is encoded</span></legend>
+          <div class="grid">
+            <label>
+              Codec
+              <select name="codec">
+                <option value="h264">H.264 (recommended)</option>
+                <option value="h265">H.265 / HEVC</option>
+              </select>
+            </label>
+            <label>
+              Resolution
+              <select name="resolution_mode">
+                <option value="source">Same as source</option>
+                <option value="fixed">Fixed</option>
+              </select>
+            </label>
+            <label class="resolution-fixed" hidden>
+              Width
+              <input type="number" name="width" min="2" max="7680" step="2" value="1280" />
+            </label>
+            <label class="resolution-fixed" hidden>
+              Height
+              <input type="number" name="height" min="2" max="7680" step="2" value="720" />
+            </label>
+            <label>
+              Frame rate
+              <select name="fps_mode">
+                <option value="source">Same as source</option>
+                <option value="fixed">Fixed</option>
+              </select>
+            </label>
+            <label class="fps-fixed" hidden>
+              FPS
+              <input type="number" name="fps" min="1" max="120" step="0.001" value="15" />
+            </label>
+            <label>
+              Bitrate
+              <select name="bitrate_mode">
+                <option value="auto">Auto (quality based)</option>
+                <option value="fixed">Fixed</option>
+              </select>
+            </label>
+            <label class="bitrate-fixed" hidden>
+              kbps
+              <input type="number" name="bitrate" min="64" max="50000" step="1" value="2500" />
+            </label>
+          </div>
+          <div class="checkboxes">
+            <label class="checkbox"><input type="checkbox" name="loop" checked /> Loop the video forever</label>
+            <label class="checkbox"><input type="checkbox" name="auto_start" /> Start automatically when the simulator starts</label>
+          </div>
+        </fieldset>
+
+        <div class="modal-actions">
+          <button type="button" id="cancel" class="btn">Cancel</button>
+          <button type="submit" id="submit" class="btn btn-primary">Save camera</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/static/app.js?v=modal-visibility-20260904"></script>
+</body>
+</html>

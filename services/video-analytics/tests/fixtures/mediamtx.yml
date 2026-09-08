@@ -1,0 +1,22 @@
+# Private RTSP fixture server for Component 4 tests.
+# This instance is NOT the VMS MediaMTX: it lives on the analytics-test network,
+# accepts test publishers, and is torn down with the test overlay.
+logLevel: warn
+api: no
+metrics: no
+pprof: no
+playback: no
+
+rtsp: yes
+rtspTransports: [tcp]
+rtspAddress: :8554
+rtspEncryption: "no"
+
+rtmp: no
+hls: no
+webrtc: no
+srt: no
+
+paths:
+  all_others:
+    source: publisher

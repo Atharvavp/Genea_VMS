@@ -1,0 +1,1091 @@
+{
+  "description": "Evaluation corpus for Component 5's semantic retrieval. The IMAGES are not committed: they are captured from the operator's own Component 4 deployment into tests/assets/cache/, which is gitignored. Only identities, digests, labels and expected queries live in this file.",
+  "source": "Component 4 public HTTP API (GET /api/events/{id}/{crop,frame})",
+  "owner": "the operator of the Component 4 deployment the images came from",
+  "license": "user-owned; not redistributed with this repository",
+  "capture_command": "python scripts/capture_eval_set.py --limit 40",
+  "label_source": "Component 4's own detector labels. They are NOT ground truth: the handoff records that a detector class can itself be wrong.",
+  "cache_directory": "tests/assets/cache",
+  "events": [
+    {
+      "event_id": "evt_08af9f7135b5208e857541906044dc98",
+      "camera_id": "acam_f7b4eede",
+      "camera_name": "cam_stream",
+      "crossed_at": "2026-09-07T11:39:21.188Z",
+      "object_category": "vehicle",
+      "object_class": "car",
+      "direction": "A_TO_B",
+      "detector_confidence": 0.5027500987052917,
+      "expected_queries": [
+        "car",
+        "a car",
+        "a parked car"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_08af9f7135b5208e857541906044dc98.crop.jpg",
+          "bytes": 7209,
+          "sha256": "016d16848425e63bc5f47431e36734aba478e06896fa96abde86528e30c1bff1"
+        },
+        "frame": {
+          "name": "evt_08af9f7135b5208e857541906044dc98.frame.jpg",
+          "bytes": 559689,
+          "sha256": "e7cd3d4e895081afa64801e732264839c7b877f04a88b3ee38afcad5122b7697"
+        }
+      }
+    },
+    {
+      "event_id": "evt_2a27cac2bc93d312ac1d581d0727baf0",
+      "camera_id": "acam_f7b4eede",
+      "camera_name": "cam_stream",
+      "crossed_at": "2026-09-07T11:39:19.654Z",
+      "object_category": "vehicle",
+      "object_class": "car",
+      "direction": "A_TO_B",
+      "detector_confidence": 0.332407683134079,
+      "expected_queries": [
+        "car",
+        "a car",
+        "a parked car"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_2a27cac2bc93d312ac1d581d0727baf0.crop.jpg",
+          "bytes": 11523,
+          "sha256": "baa1ae6e525da43b529eeda064bc908316878457df00272b9394e0e779ecdf5f"
+        },
+        "frame": {
+          "name": "evt_2a27cac2bc93d312ac1d581d0727baf0.frame.jpg",
+          "bytes": 560115,
+          "sha256": "1172fc1d9b2ed5f953a51c9e690c45f6c726132a7abe7be902ac255d1838989a"
+        }
+      }
+    },
+    {
+      "event_id": "evt_bf26236d392a4b34f76259a40d2d5df8",
+      "camera_id": "acam_f7b4eede",
+      "camera_name": "cam_stream",
+      "crossed_at": "2026-09-07T11:39:19.187Z",
+      "object_category": "vehicle",
+      "object_class": "car",
+      "direction": "A_TO_B",
+      "detector_confidence": 0.5227153301239014,
+      "expected_queries": [
+        "car",
+        "a car",
+        "a parked car"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_bf26236d392a4b34f76259a40d2d5df8.crop.jpg",
+          "bytes": 8904,
+          "sha256": "82fb59239f810c194854ca7ca595981427608c368561fa59e2aefd6bfe4ec977"
+        },
+        "frame": {
+          "name": "evt_bf26236d392a4b34f76259a40d2d5df8.frame.jpg",
+          "bytes": 566203,
+          "sha256": "32201f2734cfcbea7d2bda2351bda1ec98cbb19d9e3efbda0c3518619930851a"
+        }
+      }
+    },
+    {
+      "event_id": "evt_925303ac72d8896a148571a7aaf8b10f",
+      "camera_id": "acam_f7b4eede",
+      "camera_name": "cam_stream",
+      "crossed_at": "2026-09-07T11:39:17.587Z",
+      "object_category": "vehicle",
+      "object_class": "car",
+      "direction": "A_TO_B",
+      "detector_confidence": 0.5501118302345276,
+      "expected_queries": [
+        "car",
+        "a car",
+        "a parked car"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_925303ac72d8896a148571a7aaf8b10f.crop.jpg",
+          "bytes": 13628,
+          "sha256": "9a9cd322bd722dc924a20c1549d78743be7f4c8d978a7ec660e93e806c82e3b4"
+        },
+        "frame": {
+          "name": "evt_925303ac72d8896a148571a7aaf8b10f.frame.jpg",
+          "bytes": 544601,
+          "sha256": "5e3ce12e3ab1b1eb3c25f529c97c5f78c99b08a8b05514efe2a59ebfc6821190"
+        }
+      }
+    },
+    {
+      "event_id": "evt_fecf81f5e1a1f7feae6dc03ced2edd07",
+      "camera_id": "acam_f7b4eede",
+      "camera_name": "cam_stream",
+      "crossed_at": "2026-09-07T11:39:16.221Z",
+      "object_category": "vehicle",
+      "object_class": "car",
+      "direction": "A_TO_B",
+      "detector_confidence": 0.4628307819366455,
+      "expected_queries": [
+        "car",
+        "a car",
+        "a parked car"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_fecf81f5e1a1f7feae6dc03ced2edd07.crop.jpg",
+          "bytes": 7200,
+          "sha256": "b9e378624789cee20b0d061335de01867c6124b749433dae9144d5675d6533c4"
+        },
+        "frame": {
+          "name": "evt_fecf81f5e1a1f7feae6dc03ced2edd07.frame.jpg",
+          "bytes": 551261,
+          "sha256": "cf3f706f7874e1d3ea4bbde37a236706fd7ef4986573a2f2186f275700bfcf61"
+        }
+      }
+    },
+    {
+      "event_id": "evt_1a7034b32ae665fd7c3f568a4c2897d4",
+      "camera_id": "acam_f7b4eede",
+      "camera_name": "cam_stream",
+      "crossed_at": "2026-09-07T11:39:14.449Z",
+      "object_category": "vehicle",
+      "object_class": "car",
+      "direction": "A_TO_B",
+      "detector_confidence": 0.6691044569015503,
+      "expected_queries": [
+        "car",
+        "a car",
+        "a parked car"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_1a7034b32ae665fd7c3f568a4c2897d4.crop.jpg",
+          "bytes": 11672,
+          "sha256": "b4b4e3a0e683b72c580fafd3ea56c5eb8e1a343f91f7dae4ae1505038781dbd9"
+        },
+        "frame": {
+          "name": "evt_1a7034b32ae665fd7c3f568a4c2897d4.frame.jpg",
+          "bytes": 558405,
+          "sha256": "bf576a4e8769f87d9a03d09c0dd59d5d9b57c0ead4244b730ba0a9da5af9c1b4"
+        }
+      }
+    },
+    {
+      "event_id": "evt_b320e8cbb6d7758644713ccc9d9be58f",
+      "camera_id": "acam_f7b4eede",
+      "camera_name": "cam_stream",
+      "crossed_at": "2026-09-07T11:39:13.787Z",
+      "object_category": "vehicle",
+      "object_class": "car",
+      "direction": "A_TO_B",
+      "detector_confidence": 0.7955479621887207,
+      "expected_queries": [
+        "car",
+        "a car",
+        "a parked car"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_b320e8cbb6d7758644713ccc9d9be58f.crop.jpg",
+          "bytes": 14015,
+          "sha256": "b5ff16277637d2907b0c6332e7a0e3a1c970c4090d091a3bf90caa766f73bb47"
+        },
+        "frame": {
+          "name": "evt_b320e8cbb6d7758644713ccc9d9be58f.frame.jpg",
+          "bytes": 560568,
+          "sha256": "d43500142017b7619bfe9d58b8d0dc04981ebba31f9b1184fbc10af7364f7d64"
+        }
+      }
+    },
+    {
+      "event_id": "evt_e20b3ed9fec7a332194c6ed19839ad45",
+      "camera_id": "acam_f7b4eede",
+      "camera_name": "cam_stream",
+      "crossed_at": "2026-09-07T11:39:11.550Z",
+      "object_category": "vehicle",
+      "object_class": "car",
+      "direction": "A_TO_B",
+      "detector_confidence": 0.4704684615135193,
+      "expected_queries": [
+        "car",
+        "a car",
+        "a parked car"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_e20b3ed9fec7a332194c6ed19839ad45.crop.jpg",
+          "bytes": 6318,
+          "sha256": "8f73aa3013f1404a27a9c62095334fdb93934b10496d80a6461baca212961e37"
+        },
+        "frame": {
+          "name": "evt_e20b3ed9fec7a332194c6ed19839ad45.frame.jpg",
+          "bytes": 540685,
+          "sha256": "4e78dc98b76f3abd7010cdbb0605c32510d55f2de0a505d96bbd8413b56c8ba7"
+        }
+      }
+    },
+    {
+      "event_id": "evt_69371dcd18cd871c0ed4621d3cfd7d2f",
+      "camera_id": "acam_f7b4eede",
+      "camera_name": "cam_stream",
+      "crossed_at": "2026-09-07T11:39:11.550Z",
+      "object_category": "vehicle",
+      "object_class": "car",
+      "direction": "A_TO_B",
+      "detector_confidence": 0.5290547609329224,
+      "expected_queries": [
+        "car",
+        "a car",
+        "a parked car"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_69371dcd18cd871c0ed4621d3cfd7d2f.crop.jpg",
+          "bytes": 8402,
+          "sha256": "8956ee08cabec6cec571a9b4e472fa85e522c501e63a896a171e91e48601ca9b"
+        },
+        "frame": {
+          "name": "evt_69371dcd18cd871c0ed4621d3cfd7d2f.frame.jpg",
+          "bytes": 540685,
+          "sha256": "4e78dc98b76f3abd7010cdbb0605c32510d55f2de0a505d96bbd8413b56c8ba7"
+        }
+      }
+    },
+    {
+      "event_id": "evt_177dddbc9a1e814fcc244ffa38faea92",
+      "camera_id": "acam_f7b4eede",
+      "camera_name": "cam_stream",
+      "crossed_at": "2026-09-07T11:39:09.315Z",
+      "object_category": "vehicle",
+      "object_class": "truck",
+      "direction": "A_TO_B",
+      "detector_confidence": 0.4411860406398773,
+      "expected_queries": [
+        "truck",
+        "a truck",
+        "a large truck"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_177dddbc9a1e814fcc244ffa38faea92.crop.jpg",
+          "bytes": 12706,
+          "sha256": "91f0037deb363ee6d2449f37c0e245b75216e95496dac8137e50e38699e9896c"
+        },
+        "frame": {
+          "name": "evt_177dddbc9a1e814fcc244ffa38faea92.frame.jpg",
+          "bytes": 543733,
+          "sha256": "ab2e97040fa13bd2e580b12a09ee7f01b47c553708387a0e42998a1cdefaeb59"
+        }
+      }
+    },
+    {
+      "event_id": "evt_a2bd80a21ebad0c9dc7fd139d7f26a7c",
+      "camera_id": "acam_f7b4eede",
+      "camera_name": "cam_stream",
+      "crossed_at": "2026-09-07T11:39:08.451Z",
+      "object_category": "vehicle",
+      "object_class": "car",
+      "direction": "A_TO_B",
+      "detector_confidence": 0.370510071516037,
+      "expected_queries": [
+        "car",
+        "a car",
+        "a parked car"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_a2bd80a21ebad0c9dc7fd139d7f26a7c.crop.jpg",
+          "bytes": 8201,
+          "sha256": "867e6f6c5a7c4b265df68c73465a5c120ab9e8c0b86b5315ac1a49e63a04b436"
+        },
+        "frame": {
+          "name": "evt_a2bd80a21ebad0c9dc7fd139d7f26a7c.frame.jpg",
+          "bytes": 534838,
+          "sha256": "e46dab0211786b9da34333b1a65d41086344a1983f6e0b266582e830227abea5"
+        }
+      }
+    },
+    {
+      "event_id": "evt_06ed25f0341ca7b42d6d66f00e424816",
+      "camera_id": "acam_f7b4eede",
+      "camera_name": "cam_stream",
+      "crossed_at": "2026-09-07T11:39:01.454Z",
+      "object_category": "vehicle",
+      "object_class": "bus",
+      "direction": "A_TO_B",
+      "detector_confidence": 0.5076276063919067,
+      "expected_queries": [
+        "bus",
+        "a bus",
+        "a bus on the street"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_06ed25f0341ca7b42d6d66f00e424816.crop.jpg",
+          "bytes": 37980,
+          "sha256": "ebe19868801c67f2415b184e2327d28e8091b03a0a05a71194ba1d00d214ac9b"
+        },
+        "frame": {
+          "name": "evt_06ed25f0341ca7b42d6d66f00e424816.frame.jpg",
+          "bytes": 535556,
+          "sha256": "a159fc7b9013be73122b34e5a5033ff27fbe7dbef7f50f89d158ae3779bee239"
+        }
+      }
+    },
+    {
+      "event_id": "evt_d875b3fae75a35a74e96331330c830dd",
+      "camera_id": "acam_f7b4eede",
+      "camera_name": "cam_stream",
+      "crossed_at": "2026-09-07T11:39:01.227Z",
+      "object_category": "vehicle",
+      "object_class": "truck",
+      "direction": "A_TO_B",
+      "detector_confidence": 0.306754469871521,
+      "expected_queries": [
+        "truck",
+        "a truck",
+        "a large truck"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_d875b3fae75a35a74e96331330c830dd.crop.jpg",
+          "bytes": 9737,
+          "sha256": "65572687bd8e20cbde0e2cac2ff8039ee95f50929342c95c85870d762d40cf22"
+        },
+        "frame": {
+          "name": "evt_d875b3fae75a35a74e96331330c830dd.frame.jpg",
+          "bytes": 547500,
+          "sha256": "050edd278e1fd5fd40c752fdcb1fecb5d6546b390daf9d739a0ed949796f6e21"
+        }
+      }
+    },
+    {
+      "event_id": "evt_6ed492baa67742a39f9bf6e64c8a1723",
+      "camera_id": "acam_f7b4eede",
+      "camera_name": "cam_stream",
+      "crossed_at": "2026-09-07T11:38:57.354Z",
+      "object_category": "vehicle",
+      "object_class": "truck",
+      "direction": "A_TO_B",
+      "detector_confidence": 0.752022385597229,
+      "expected_queries": [
+        "truck",
+        "a truck",
+        "a large truck"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_6ed492baa67742a39f9bf6e64c8a1723.crop.jpg",
+          "bytes": 85003,
+          "sha256": "2e462f6ec2f1158e62268890037beb5d2094f53a12f8750ab68170eb23edfbce"
+        },
+        "frame": {
+          "name": "evt_6ed492baa67742a39f9bf6e64c8a1723.frame.jpg",
+          "bytes": 505186,
+          "sha256": "3d51598233e129d0add9fc2667a18598ce4ffafd85bd52e531420d4d51bbe9cf"
+        }
+      }
+    },
+    {
+      "event_id": "evt_bac0dfa705d337e5ba780bf9281ac82c",
+      "camera_id": "acam_f7b4eede",
+      "camera_name": "cam_stream",
+      "crossed_at": "2026-09-07T11:38:55.955Z",
+      "object_category": "vehicle",
+      "object_class": "truck",
+      "direction": "A_TO_B",
+      "detector_confidence": 0.31966787576675415,
+      "expected_queries": [
+        "truck",
+        "a truck",
+        "a large truck"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_bac0dfa705d337e5ba780bf9281ac82c.crop.jpg",
+          "bytes": 7643,
+          "sha256": "44aa80384cf1f2b32639e9264a2cfef69c4ff62ac8c1dac6f7440103f6b147d6"
+        },
+        "frame": {
+          "name": "evt_bac0dfa705d337e5ba780bf9281ac82c.frame.jpg",
+          "bytes": 524155,
+          "sha256": "c4bba716d8b2657d721bd55f5cbee9b8cd75547bfeb440d8ee4f2305f725ed08"
+        }
+      }
+    },
+    {
+      "event_id": "evt_57854b92bb4d351eb5f635545f698df7",
+      "camera_id": "acam_f7b4eede",
+      "camera_name": "cam_stream",
+      "crossed_at": "2026-09-07T11:38:47.820Z",
+      "object_category": "vehicle",
+      "object_class": "truck",
+      "direction": "A_TO_B",
+      "detector_confidence": 0.5209549069404602,
+      "expected_queries": [
+        "truck",
+        "a truck",
+        "a large truck"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_57854b92bb4d351eb5f635545f698df7.crop.jpg",
+          "bytes": 13662,
+          "sha256": "89e4e5c3dba566c8c501ed48c4bb7fd8ec4e149b7dbc2287de894a784bfd4562"
+        },
+        "frame": {
+          "name": "evt_57854b92bb4d351eb5f635545f698df7.frame.jpg",
+          "bytes": 538306,
+          "sha256": "faed54332660f62a60a260b27e565a4926178b0c43394fd19d84e20d023fad86"
+        }
+      }
+    },
+    {
+      "event_id": "evt_b878392c4d8a5056390acdce9a5a3814",
+      "camera_id": "acam_f7b4eede",
+      "camera_name": "cam_stream",
+      "crossed_at": "2026-09-07T11:38:47.587Z",
+      "object_category": "vehicle",
+      "object_class": "truck",
+      "direction": "A_TO_B",
+      "detector_confidence": 0.48661091923713684,
+      "expected_queries": [
+        "truck",
+        "a truck",
+        "a large truck"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_b878392c4d8a5056390acdce9a5a3814.crop.jpg",
+          "bytes": 9082,
+          "sha256": "608bf5b618f46921b038a05d9c91e63ad99be57601549c280879784610bada81"
+        },
+        "frame": {
+          "name": "evt_b878392c4d8a5056390acdce9a5a3814.frame.jpg",
+          "bytes": 538247,
+          "sha256": "5dd3f1765ee443e2efdd6ef462cb4cd6bf39214a2ef564b68605abedb05c96d1"
+        }
+      }
+    },
+    {
+      "event_id": "evt_be34e0fe289de681de708f8faf3b2a08",
+      "camera_id": "acam_f7b4eede",
+      "camera_name": "cam_stream",
+      "crossed_at": "2026-09-07T11:38:45.520Z",
+      "object_category": "vehicle",
+      "object_class": "truck",
+      "direction": "A_TO_B",
+      "detector_confidence": 0.3824690580368042,
+      "expected_queries": [
+        "truck",
+        "a truck",
+        "a large truck"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_be34e0fe289de681de708f8faf3b2a08.crop.jpg",
+          "bytes": 13283,
+          "sha256": "03b4d5f702fea7ac84592174655c0430841b4c244b506c8b29feb82275f5c7e9"
+        },
+        "frame": {
+          "name": "evt_be34e0fe289de681de708f8faf3b2a08.frame.jpg",
+          "bytes": 591467,
+          "sha256": "0e4739f936aec79b0019bb5758d1a3e6075572488823686e6598e00a63925578"
+        }
+      }
+    },
+    {
+      "event_id": "evt_068d727989ff3db432865c4e61e33eda",
+      "camera_id": "acam_f7b4eede",
+      "camera_name": "cam_stream",
+      "crossed_at": "2026-09-07T11:38:43.789Z",
+      "object_category": "vehicle",
+      "object_class": "truck",
+      "direction": "A_TO_B",
+      "detector_confidence": 0.4521627426147461,
+      "expected_queries": [
+        "truck",
+        "a truck",
+        "a large truck"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_068d727989ff3db432865c4e61e33eda.crop.jpg",
+          "bytes": 11511,
+          "sha256": "6ad0ce9625df91990d0f6c02fd8de003e6259fcf36fcb9dd426f77ebaf8ab274"
+        },
+        "frame": {
+          "name": "evt_068d727989ff3db432865c4e61e33eda.frame.jpg",
+          "bytes": 546466,
+          "sha256": "1cd290203169e0470595440f5906b2620523447d5d0aa02d9d55dd5f31ed6368"
+        }
+      }
+    },
+    {
+      "event_id": "evt_b596d92a4983e6078381b70a3686690c",
+      "camera_id": "acam_f7b4eede",
+      "camera_name": "cam_stream",
+      "crossed_at": "2026-09-07T11:38:42.019Z",
+      "object_category": "vehicle",
+      "object_class": "bus",
+      "direction": "A_TO_B",
+      "detector_confidence": 0.6565698981285095,
+      "expected_queries": [
+        "bus",
+        "a bus",
+        "a bus on the street"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_b596d92a4983e6078381b70a3686690c.crop.jpg",
+          "bytes": 17089,
+          "sha256": "13a3964689afc4752b3c759051a1361611a943a9afe08062841bd8ae6b2a5257"
+        },
+        "frame": {
+          "name": "evt_b596d92a4983e6078381b70a3686690c.frame.jpg",
+          "bytes": 558592,
+          "sha256": "ff18f9dd2545a3a67ea94fe3c491ff765500a40bd3d4f03703127fa08f179563"
+        }
+      }
+    },
+    {
+      "event_id": "evt_c7f9b58838a58e51f5f67c4196c57c9d",
+      "camera_id": "acam_f7b4eede",
+      "camera_name": "cam_stream",
+      "crossed_at": "2026-09-07T11:38:41.787Z",
+      "object_category": "vehicle",
+      "object_class": "truck",
+      "direction": "A_TO_B",
+      "detector_confidence": 0.3539198935031891,
+      "expected_queries": [
+        "truck",
+        "a truck",
+        "a large truck"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_c7f9b58838a58e51f5f67c4196c57c9d.crop.jpg",
+          "bytes": 16926,
+          "sha256": "8d2126d692a2094cec80cac5a11cba43c3e7a765862ab01c3e53d5b90cd360f7"
+        },
+        "frame": {
+          "name": "evt_c7f9b58838a58e51f5f67c4196c57c9d.frame.jpg",
+          "bytes": 562015,
+          "sha256": "dc9c56389672f560b407697c8b363103de44d3a8c0a4fcbdf97da5f97a980386"
+        }
+      }
+    },
+    {
+      "event_id": "evt_d78e654ef67010095d79c1f1cf5af6df",
+      "camera_id": "acam_f7b4eede",
+      "camera_name": "cam_stream",
+      "crossed_at": "2026-09-07T11:38:39.989Z",
+      "object_category": "vehicle",
+      "object_class": "truck",
+      "direction": "A_TO_B",
+      "detector_confidence": 0.2841132581233978,
+      "expected_queries": [
+        "truck",
+        "a truck",
+        "a large truck"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_d78e654ef67010095d79c1f1cf5af6df.crop.jpg",
+          "bytes": 7781,
+          "sha256": "e91cbb1f170da0f0fcadb2d8f2752605d9b5e2864838fbbaa000f571881bc0af"
+        },
+        "frame": {
+          "name": "evt_d78e654ef67010095d79c1f1cf5af6df.frame.jpg",
+          "bytes": 584811,
+          "sha256": "c7a822c569a0850688867313fe13745dd7d3fcd4ca61926ab0e05d06a70e242e"
+        }
+      }
+    },
+    {
+      "event_id": "evt_2df3b7d90993b0a575a5f789da5c21b0",
+      "camera_id": "acam_f7b4eede",
+      "camera_name": "cam_stream",
+      "crossed_at": "2026-09-07T11:38:36.221Z",
+      "object_category": "vehicle",
+      "object_class": "bus",
+      "direction": "A_TO_B",
+      "detector_confidence": 0.6461862325668335,
+      "expected_queries": [
+        "bus",
+        "a bus",
+        "a bus on the street"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_2df3b7d90993b0a575a5f789da5c21b0.crop.jpg",
+          "bytes": 10218,
+          "sha256": "449153aca5af81a7267ba807a39749d4da4ffd0f9208d99053a899ae47137b93"
+        },
+        "frame": {
+          "name": "evt_2df3b7d90993b0a575a5f789da5c21b0.frame.jpg",
+          "bytes": 557069,
+          "sha256": "f337e590fb725dc4cb0c2cc79968f6374c186a5afcd14ceb46f8cc21f602069d"
+        }
+      }
+    },
+    {
+      "event_id": "evt_f2ef9858172f2430b26b62acf6a93aee",
+      "camera_id": "acam_f49b6eb3",
+      "camera_name": "cam_stream",
+      "crossed_at": "2026-09-06T22:52:21.287Z",
+      "object_category": "person",
+      "object_class": "person",
+      "direction": "A_TO_B",
+      "detector_confidence": 0.6840883493423462,
+      "expected_queries": [
+        "person",
+        "a person walking",
+        "a pedestrian"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_f2ef9858172f2430b26b62acf6a93aee.crop.jpg",
+          "bytes": 2248,
+          "sha256": "ddac1e5bc70f17532460f9d82a2a23a6ab9dd42ddfb0487a8093930acb20543f"
+        },
+        "frame": {
+          "name": "evt_f2ef9858172f2430b26b62acf6a93aee.frame.jpg",
+          "bytes": 345708,
+          "sha256": "fd78b965d194e213c26c665a98dfd455d0151a5d47e02788bfb6339b0731cb37"
+        }
+      }
+    },
+    {
+      "event_id": "evt_37e7df990e15bf0f0be61d8fcef0ef8f",
+      "camera_id": "acam_f49b6eb3",
+      "camera_name": "cam_stream",
+      "crossed_at": "2026-09-06T22:52:20.886Z",
+      "object_category": "person",
+      "object_class": "person",
+      "direction": "A_TO_B",
+      "detector_confidence": 0.6748824119567871,
+      "expected_queries": [
+        "person",
+        "a person walking",
+        "a pedestrian"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_37e7df990e15bf0f0be61d8fcef0ef8f.crop.jpg",
+          "bytes": 2008,
+          "sha256": "d13c17d35a88f9c75df8ecbf23c42b44c1975106e89059dc28e827e4f974f3cc"
+        },
+        "frame": {
+          "name": "evt_37e7df990e15bf0f0be61d8fcef0ef8f.frame.jpg",
+          "bytes": 342518,
+          "sha256": "bbd353930ed3109236217e070d6ca44f00445312720a7a73b2fbfd182bd074ec"
+        }
+      }
+    },
+    {
+      "event_id": "evt_94b0672e7b25a18a4c1342af80b3b638",
+      "camera_id": "acam_f49b6eb3",
+      "camera_name": "cam_stream",
+      "crossed_at": "2026-09-06T22:51:56.926Z",
+      "object_category": "person",
+      "object_class": "person",
+      "direction": "A_TO_B",
+      "detector_confidence": 0.7145298719406128,
+      "expected_queries": [
+        "person",
+        "a person walking",
+        "a pedestrian"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_94b0672e7b25a18a4c1342af80b3b638.crop.jpg",
+          "bytes": 2163,
+          "sha256": "f588ef399f2e8dd2c93faae8d35d328dc3d5cc40e1a9da9c495d4fc0427447be"
+        },
+        "frame": {
+          "name": "evt_94b0672e7b25a18a4c1342af80b3b638.frame.jpg",
+          "bytes": 347135,
+          "sha256": "17d1e49e3d4e96b11aab4f5a8645a63e3cad8f1325007689c6547fe97671ea07"
+        }
+      }
+    },
+    {
+      "event_id": "evt_ede2c25cbb92206dfd26156d3e984d1b",
+      "camera_id": "acam_f49b6eb3",
+      "camera_name": "cam_stream",
+      "crossed_at": "2026-09-06T22:51:56.485Z",
+      "object_category": "person",
+      "object_class": "person",
+      "direction": "A_TO_B",
+      "detector_confidence": 0.6946876645088196,
+      "expected_queries": [
+        "person",
+        "a person walking",
+        "a pedestrian"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_ede2c25cbb92206dfd26156d3e984d1b.crop.jpg",
+          "bytes": 1971,
+          "sha256": "bd270221b952e9135f85b5d97ba66e255bb663dddff9a1ce84a63cd45ff85474"
+        },
+        "frame": {
+          "name": "evt_ede2c25cbb92206dfd26156d3e984d1b.frame.jpg",
+          "bytes": 346708,
+          "sha256": "9e6c2aaa784455ac75f8569c93de8cfeb4a8a6c603929ea5d38e8acb713be82c"
+        }
+      }
+    },
+    {
+      "event_id": "evt_bcfbef89bd6d41fc9829b2dc4326a9b0",
+      "camera_id": "acam_f49b6eb3",
+      "camera_name": "cam_stream",
+      "crossed_at": "2026-09-06T22:51:32.525Z",
+      "object_category": "person",
+      "object_class": "person",
+      "direction": "A_TO_B",
+      "detector_confidence": 0.680855393409729,
+      "expected_queries": [
+        "person",
+        "a person walking",
+        "a pedestrian"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_bcfbef89bd6d41fc9829b2dc4326a9b0.crop.jpg",
+          "bytes": 2261,
+          "sha256": "c52a0654dad19780f7fc8340dd20bffc2751268161d8352acd43367169043fe4"
+        },
+        "frame": {
+          "name": "evt_bcfbef89bd6d41fc9829b2dc4326a9b0.frame.jpg",
+          "bytes": 347180,
+          "sha256": "37c798d28f0fa281cc0252ea35f9f87dc27701467ee7cdc7139a7801c04ba324"
+        }
+      }
+    },
+    {
+      "event_id": "evt_6c3e0a12899641bc998a3211d70a75c4",
+      "camera_id": "acam_f49b6eb3",
+      "camera_name": "cam_stream",
+      "crossed_at": "2026-09-06T22:51:32.085Z",
+      "object_category": "person",
+      "object_class": "person",
+      "direction": "A_TO_B",
+      "detector_confidence": 0.6959535479545593,
+      "expected_queries": [
+        "person",
+        "a person walking",
+        "a pedestrian"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_6c3e0a12899641bc998a3211d70a75c4.crop.jpg",
+          "bytes": 1993,
+          "sha256": "ca2fe3fb0a0eea4bdfa9858e960c626d302be661387085ff53a8bb6c9c5b7d48"
+        },
+        "frame": {
+          "name": "evt_6c3e0a12899641bc998a3211d70a75c4.frame.jpg",
+          "bytes": 343692,
+          "sha256": "7c139c9d513ea96d501e61f5e451991cdd2fbd9137e1671642f4d19b5709781e"
+        }
+      }
+    },
+    {
+      "event_id": "evt_8b71065b8b4cff87f94696d5eeb4058e",
+      "camera_id": "acam_f49b6eb3",
+      "camera_name": "cam_stream",
+      "crossed_at": "2026-09-06T22:51:07.967Z",
+      "object_category": "person",
+      "object_class": "person",
+      "direction": "A_TO_B",
+      "detector_confidence": 0.6918905377388,
+      "expected_queries": [
+        "person",
+        "a person walking",
+        "a pedestrian"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_8b71065b8b4cff87f94696d5eeb4058e.crop.jpg",
+          "bytes": 2273,
+          "sha256": "d3c9168a14f4ca5dc574675cc387134be4f1dd5cd2270c4de223b19079b00eba"
+        },
+        "frame": {
+          "name": "evt_8b71065b8b4cff87f94696d5eeb4058e.frame.jpg",
+          "bytes": 348283,
+          "sha256": "71bb70b3345b74847e025ffe96b3550930b6de496a0554f333842fb6a403f8fb"
+        }
+      }
+    },
+    {
+      "event_id": "evt_3263f4533534f7a420b4582eba9abba7",
+      "camera_id": "acam_f49b6eb3",
+      "camera_name": "cam_stream",
+      "crossed_at": "2026-09-06T22:51:07.726Z",
+      "object_category": "person",
+      "object_class": "person",
+      "direction": "A_TO_B",
+      "detector_confidence": 0.6483021974563599,
+      "expected_queries": [
+        "person",
+        "a person walking",
+        "a pedestrian"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_3263f4533534f7a420b4582eba9abba7.crop.jpg",
+          "bytes": 1926,
+          "sha256": "e60e7d7e89739190d0b1606923bc918bf5766b1f4b6bd8c4a2b087ec3572f91a"
+        },
+        "frame": {
+          "name": "evt_3263f4533534f7a420b4582eba9abba7.frame.jpg",
+          "bytes": 347990,
+          "sha256": "55ad3609071ecafc773f1e15b9aa9e09c7f3e60751e699a75eb1be2b53e7ff56"
+        }
+      }
+    },
+    {
+      "event_id": "evt_5e2646ca490444ef32822562535d7f74",
+      "camera_id": "acam_f49b6eb3",
+      "camera_name": "cam_stream",
+      "crossed_at": "2026-09-06T22:50:43.686Z",
+      "object_category": "person",
+      "object_class": "person",
+      "direction": "A_TO_B",
+      "detector_confidence": 0.714084267616272,
+      "expected_queries": [
+        "person",
+        "a person walking",
+        "a pedestrian"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_5e2646ca490444ef32822562535d7f74.crop.jpg",
+          "bytes": 2280,
+          "sha256": "e751f580925b60d7356e5d69b787dc866c63d944db3b2ea32c009f9f75f48fb1"
+        },
+        "frame": {
+          "name": "evt_5e2646ca490444ef32822562535d7f74.frame.jpg",
+          "bytes": 347264,
+          "sha256": "76ac26100f31c75a41ff544e5a38542fff04580869585ed1c06b0e667dba0f66"
+        }
+      }
+    },
+    {
+      "event_id": "evt_a0cae8399ff7c64824766d3248283d93",
+      "camera_id": "acam_f49b6eb3",
+      "camera_name": "cam_stream",
+      "crossed_at": "2026-09-06T22:50:43.210Z",
+      "object_category": "person",
+      "object_class": "person",
+      "direction": "A_TO_B",
+      "detector_confidence": 0.6959535479545593,
+      "expected_queries": [
+        "person",
+        "a person walking",
+        "a pedestrian"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_a0cae8399ff7c64824766d3248283d93.crop.jpg",
+          "bytes": 1993,
+          "sha256": "ca2fe3fb0a0eea4bdfa9858e960c626d302be661387085ff53a8bb6c9c5b7d48"
+        },
+        "frame": {
+          "name": "evt_a0cae8399ff7c64824766d3248283d93.frame.jpg",
+          "bytes": 343692,
+          "sha256": "7c139c9d513ea96d501e61f5e451991cdd2fbd9137e1671642f4d19b5709781e"
+        }
+      }
+    },
+    {
+      "event_id": "evt_dcc630d2d0227aa49d077a98f469a995",
+      "camera_id": "acam_50e18733",
+      "camera_name": "Traffic line",
+      "crossed_at": "2026-09-06T22:43:17.447Z",
+      "object_category": "vehicle",
+      "object_class": "bus",
+      "direction": "B_TO_A",
+      "detector_confidence": 0.9042371511459351,
+      "expected_queries": [
+        "bus",
+        "a bus",
+        "a bus on the street"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_dcc630d2d0227aa49d077a98f469a995.crop.jpg",
+          "bytes": 24970,
+          "sha256": "65b24fa44a00a44a0fbc5172de76bbae2682a8b989477890d0036beef4406362"
+        },
+        "frame": {
+          "name": "evt_dcc630d2d0227aa49d077a98f469a995.frame.jpg",
+          "bytes": 58862,
+          "sha256": "cba0b995c58343315dfadeb080bd2cee603dcf7e4d1def09d8fe5921bd6d14a7"
+        }
+      }
+    },
+    {
+      "event_id": "evt_0a341bf36f5a07c4bd34ff885ac78ca6",
+      "camera_id": "acam_50e18733",
+      "camera_name": "Traffic line",
+      "crossed_at": "2026-09-06T22:43:04.581Z",
+      "object_category": "vehicle",
+      "object_class": "bus",
+      "direction": "B_TO_A",
+      "detector_confidence": 0.9099652171134949,
+      "expected_queries": [
+        "bus",
+        "a bus",
+        "a bus on the street"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_0a341bf36f5a07c4bd34ff885ac78ca6.crop.jpg",
+          "bytes": 24926,
+          "sha256": "25a597114174dde4db9d58b26391b5de1477e68de76a0a23a898dc18452fc2a3"
+        },
+        "frame": {
+          "name": "evt_0a341bf36f5a07c4bd34ff885ac78ca6.frame.jpg",
+          "bytes": 58888,
+          "sha256": "63cad152c10369f339511b8fe354f19dbab2ba4ecad7f752028b2445f113bf3f"
+        }
+      }
+    },
+    {
+      "event_id": "evt_2c116896098b87a9c63223b92167631a",
+      "camera_id": "acam_50e18733",
+      "camera_name": "Traffic line",
+      "crossed_at": "2026-09-06T22:42:53.444Z",
+      "object_category": "vehicle",
+      "object_class": "bus",
+      "direction": "B_TO_A",
+      "detector_confidence": 0.9042371511459351,
+      "expected_queries": [
+        "bus",
+        "a bus",
+        "a bus on the street"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_2c116896098b87a9c63223b92167631a.crop.jpg",
+          "bytes": 24970,
+          "sha256": "65b24fa44a00a44a0fbc5172de76bbae2682a8b989477890d0036beef4406362"
+        },
+        "frame": {
+          "name": "evt_2c116896098b87a9c63223b92167631a.frame.jpg",
+          "bytes": 58862,
+          "sha256": "cba0b995c58343315dfadeb080bd2cee603dcf7e4d1def09d8fe5921bd6d14a7"
+        }
+      }
+    },
+    {
+      "event_id": "evt_65d12e3a46246fc679a6f9790bf50de1",
+      "camera_id": "acam_50e18733",
+      "camera_name": "Traffic line",
+      "crossed_at": "2026-09-06T22:42:40.577Z",
+      "object_category": "vehicle",
+      "object_class": "bus",
+      "direction": "B_TO_A",
+      "detector_confidence": 0.9099652171134949,
+      "expected_queries": [
+        "bus",
+        "a bus",
+        "a bus on the street"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_65d12e3a46246fc679a6f9790bf50de1.crop.jpg",
+          "bytes": 24926,
+          "sha256": "25a597114174dde4db9d58b26391b5de1477e68de76a0a23a898dc18452fc2a3"
+        },
+        "frame": {
+          "name": "evt_65d12e3a46246fc679a6f9790bf50de1.frame.jpg",
+          "bytes": 58888,
+          "sha256": "63cad152c10369f339511b8fe354f19dbab2ba4ecad7f752028b2445f113bf3f"
+        }
+      }
+    },
+    {
+      "event_id": "evt_fb9bd24978f0fe3e57efe2627d8e6d71",
+      "camera_id": "acam_50e18733",
+      "camera_name": "Traffic line",
+      "crossed_at": "2026-09-06T22:42:29.375Z",
+      "object_category": "vehicle",
+      "object_class": "bus",
+      "direction": "B_TO_A",
+      "detector_confidence": 0.908799946308136,
+      "expected_queries": [
+        "bus",
+        "a bus",
+        "a bus on the street"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_fb9bd24978f0fe3e57efe2627d8e6d71.crop.jpg",
+          "bytes": 24875,
+          "sha256": "3b7ca0ec6923112582f649356a29626110cd2bf3f65dda66513aa4124b977eb6"
+        },
+        "frame": {
+          "name": "evt_fb9bd24978f0fe3e57efe2627d8e6d71.frame.jpg",
+          "bytes": 59806,
+          "sha256": "39379ac01327372c080e783d5995744aa6a962c5dc0d0dd2c51b87eba329477e"
+        }
+      }
+    },
+    {
+      "event_id": "evt_c482b730f5c7a16d404726b582e8b22c",
+      "camera_id": "acam_50e18733",
+      "camera_name": "Traffic line",
+      "crossed_at": "2026-09-06T22:42:16.577Z",
+      "object_category": "vehicle",
+      "object_class": "bus",
+      "direction": "B_TO_A",
+      "detector_confidence": 0.9099652171134949,
+      "expected_queries": [
+        "bus",
+        "a bus",
+        "a bus on the street"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_c482b730f5c7a16d404726b582e8b22c.crop.jpg",
+          "bytes": 24926,
+          "sha256": "25a597114174dde4db9d58b26391b5de1477e68de76a0a23a898dc18452fc2a3"
+        },
+        "frame": {
+          "name": "evt_c482b730f5c7a16d404726b582e8b22c.frame.jpg",
+          "bytes": 58888,
+          "sha256": "63cad152c10369f339511b8fe354f19dbab2ba4ecad7f752028b2445f113bf3f"
+        }
+      }
+    },
+    {
+      "event_id": "evt_5bc65bb38e4523ac3a408c649d4167c4",
+      "camera_id": "acam_50e18733",
+      "camera_name": "Traffic line",
+      "crossed_at": "2026-09-06T22:42:05.308Z",
+      "object_category": "vehicle",
+      "object_class": "bus",
+      "direction": "B_TO_A",
+      "detector_confidence": 0.884887158870697,
+      "expected_queries": [
+        "bus",
+        "a bus",
+        "a bus on the street"
+      ],
+      "files": {
+        "crop": {
+          "name": "evt_5bc65bb38e4523ac3a408c649d4167c4.crop.jpg",
+          "bytes": 24845,
+          "sha256": "4c193ddcbe4c790e20dcb75598fec83bd3a2f896856f12be0d93747fd9757747"
+        },
+        "frame": {
+          "name": "evt_5bc65bb38e4523ac3a408c649d4167c4.frame.jpg",
+          "bytes": 58985,
+          "sha256": "aeb6aa80e7b75df37b919d737baab60b56463a82f605e08f308ec7f273d3ea57"
+        }
+      }
+    }
+  ]
+}

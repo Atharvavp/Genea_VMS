@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "genea-vms-live-view"
+version = "1.0.0"
+description = "VMS live view: register generic RTSP cameras, ingest them through MediaMTX, watch them in the browser over WebRTC."
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.115.6",
+    "uvicorn[standard]==0.34.0",
+    "pydantic==2.10.4",
+    "pydantic-settings==2.7.1",
+    "httpx==0.28.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.3.4",
+    "pytest-asyncio==0.25.2",
+    "httpx==0.28.1",
+]
+# Browser E2E only. Kept out of `dev` so the runtime image never installs a
+# browser driver: the e2e tier runs on the host against the running stacks.
+e2e = [
+    "playwright==1.62.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# `integration` needs a live MediaMTX; `e2e` also needs a browser and an
+# external RTSP source. Both are opt-in.
+addopts = "-m 'not integration and not e2e'"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "integration: tests that need a running MediaMTX",
+    "e2e: browser tests that need the full stack plus an external RTSP source",
+]

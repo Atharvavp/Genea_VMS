@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+*.egg-info/
+.env
+data/
+*.db
+*.db-wal
+*.db-shm
+*.npy
+models/
+.DS_Store
+tests/assets/cache/

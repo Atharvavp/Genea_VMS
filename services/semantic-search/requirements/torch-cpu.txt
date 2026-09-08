@@ -1,0 +1,21 @@
+# CPU-only PyTorch for Component 5, installed with --no-deps from the official
+# CPU wheel index BEFORE requirements/runtime.lock. An unqualified PyPI Torch on
+# this platform attempts to pull CUDA packages; Component 5 is CPU-only for P0.
+#
+#   pip install --no-deps --require-hashes \
+#       --index-url https://download.pytorch.org/whl/cpu -r torch-cpu.txt
+#
+# Torch's own runtime dependencies (filelock, sympy, networkx, jinja2, fsspec,
+# typing-extensions, setuptools) are resolved and hashed in runtime.lock.
+#
+# On linux/aarch64 the CPU index publishes torchvision WITHOUT the "+cpu" local
+# version; on linux/x86_64 it publishes it WITH it. Both are pinned here. This
+# is the pattern Component 4 proved on this platform.
+torch==2.7.1+cpu ; platform_machine == "aarch64" \
+    --hash=sha256:3bf2db5adf77b433844f080887ade049c4705ddf9fe1a32023ff84ff735aa5ad
+torch==2.7.1+cpu ; platform_machine == "x86_64" \
+    --hash=sha256:8f8b3cfc53010a4b4a3c7ecb88c212e9decc4f5eeb6af75c3c803937d2d60947
+torchvision==0.22.1 ; platform_machine == "aarch64" \
+    --hash=sha256:964414eef19459d55a10e886e2fca50677550e243586d1678f65e3f6f6bac47a
+torchvision==0.22.1+cpu ; platform_machine == "x86_64" \
+    --hash=sha256:b5fa7044bd82c6358e8229351c98070cf3a7bf4a6e89ea46352ae6c65745ef94
