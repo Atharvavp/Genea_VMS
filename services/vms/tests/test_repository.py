@@ -1,0 +1,260 @@
+"""Schema, connection settings and CRUD of the camera repository."""
+
+from __future__ import annotations
+
+import sqlite3
+
+import pytest
+
+from app.domain.models import CameraRecord, utcnow_iso
+from app.persistence.camera_repository import CameraRepository, DuplicatePath
+from app.persistence.database import connect
+
+
+def make_record(
+    camera_id="cam_00000001",
+    name="Lobby",
+    enabled=True,
+    url=None,
+    recording_enabled=False,
+):
+    now = utcnow_iso()
+    return CameraRecord(
+        id=camera_id,
+        name=name,
+        rtsp_url=url or f"rtsp://cam/{camera_id}",
+        mediamtx_path=f"vms_{camera_id}",
+        enabled=enabled,
+        recording_enabled=recording_enabled,
+        created_at=now,
+        updated_at=now,
+    )
+
+
+@pytest.fixture
+def repo(tmp_path):
+    repository = CameraRepository(tmp_path / "vms.db")
+    repository.initialize()
+    return repository
+
+
+def test_initialize_creates_schema_and_is_idempotent(repo):
+    repo.initialize()
+    with connect(repo.db_path) as connection:
+        columns = {
+            row["name"]
+            for row in connection.execute("PRAGMA table_info(cameras)").fetchall()
+        }
+    assert columns == {
+        "id",
+        "name",
+        "rtsp_url",
+        "mediamtx_path",
+        "enabled",
+        "recording_enabled",
+        "created_at",
+        "updated_at",
+    }
+
+
+def test_health_is_not_persisted(repo):
+    """Health is runtime state derived from MediaMTX, so it has no column."""
+    with connect(repo.db_path) as connection:
+        columns = {
+            row["name"]
+            for row in connection.execute("PRAGMA table_info(cameras)").fetchall()
+        }
+    assert not columns & {"health_state", "last_error", "last_checked_at"}
+
+
+def test_runtime_recording_state_is_not_persisted(repo):
+    """`recording_enabled` is desired state; RECORDING/WAITING is derived."""
+    with connect(repo.db_path) as connection:
+        columns = {
+            row["name"]
+            for row in connection.execute("PRAGMA table_info(cameras)").fetchall()
+        }
+    assert "recording_enabled" in columns
+    assert not columns & {"recording_state", "recording_last_error", "last_segment_at"}
+
+
+def test_no_recordings_table_exists(repo):
+    """MediaMTX is authoritative for recording existence; there is no index."""
+    with connect(repo.db_path) as connection:
+        tables = {
+            row["name"]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            ).fetchall()
+        }
+    assert "recordings" not in tables
+
+
+def test_recording_preference_round_trips(repo):
+    record = repo.insert(make_record("cam_00000001", recording_enabled=True))
+    assert repo.get(record.id).recording_enabled is True
+
+    off = CameraRecord(**{**record.__dict__, "recording_enabled": False})
+    repo.update(off)
+    assert repo.get(record.id).recording_enabled is False
+
+
+def test_recording_preference_defaults_to_off(repo):
+    repo.insert(make_record("cam_00000001"))
+    assert repo.get("cam_00000001").recording_enabled is False
+
+
+def test_disabling_a_camera_keeps_its_recording_preference(repo):
+    """A disabled camera resumes recording when it is enabled again."""
+    record = repo.insert(make_record("cam_00000001", recording_enabled=True))
+    repo.update(CameraRecord(**{**record.__dict__, "enabled": False}))
+    stored = repo.get(record.id)
+    assert stored.enabled is False
+    assert stored.recording_enabled is True
+
+
+def test_upgrade_from_a_component_2_database_preserves_rows(tmp_path):
+    """The Component 2 -> 3 upgrade adds a column and nothing else."""
+    db_path = tmp_path / "legacy.db"
+    legacy = sqlite3.connect(db_path)
+    legacy.executescript(
+        """
+        CREATE TABLE cameras (
+            id TEXT PRIMARY KEY, name TEXT NOT NULL, rtsp_url TEXT NOT NULL,
+            mediamtx_path TEXT NOT NULL, enabled INTEGER NOT NULL,
+            created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+        CREATE UNIQUE INDEX ux_cameras_mediamtx_path ON cameras (mediamtx_path);
+        INSERT INTO cameras VALUES (
+            'cam_00000001', 'Legacy', 'rtsp://admin:hunter2@10.0.0.9:554/x',
+            'vms_cam_00000001', 1, '2026-01-01T00:00:00.000Z',
+            '2026-01-01T00:00:00.000Z');
+        """
+    )
+    legacy.commit()
+    legacy.close()
+
+    repository = CameraRepository(db_path)
+    repository.initialize()
+    repository.initialize()  # idempotent: safe on every start
+
+    stored = repository.get("cam_00000001")
+    assert stored.name == "Legacy"
+    assert stored.enabled is True
+    # An upgraded camera must not start recording by surprise.
+    assert stored.recording_enabled is False
+    # The stored source, credentials and all, survives untouched.
+    assert stored.rtsp_url == "rtsp://admin:hunter2@10.0.0.9:554/x"
+
+
+def test_upgrade_is_a_no_op_on_a_current_database(repo):
+    repo.insert(make_record("cam_00000001", recording_enabled=True))
+    repo.initialize()
+    assert repo.get("cam_00000001").recording_enabled is True
+
+
+def test_connection_uses_wal(repo):
+    with connect(repo.db_path) as connection:
+        mode = connection.execute("PRAGMA journal_mode").fetchone()[0]
+    assert mode.lower() == "wal"
+
+
+def test_insert_get_and_list(repo):
+    first = repo.insert(make_record("cam_00000001", "Lobby"))
+    second = repo.insert(make_record("cam_00000002", "Dock"))
+    assert repo.get(first.id) == first
+    assert [record.id for record in repo.list()] == [first.id, second.id]
+
+
+def test_get_missing_returns_none(repo):
+    assert repo.get("cam_deadbeef") is None
+
+
+def test_duplicate_mediamtx_path_rejected(repo):
+    repo.insert(make_record("cam_00000001"))
+    clash = CameraRecord(
+        id="cam_00000009",
+        name="Clash",
+        rtsp_url="rtsp://cam/x",
+        mediamtx_path="vms_cam_00000001",
+        enabled=True,
+        recording_enabled=False,
+        created_at=utcnow_iso(),
+        updated_at=utcnow_iso(),
+    )
+    with pytest.raises(DuplicatePath):
+        repo.insert(clash)
+
+
+def test_duplicate_id_rejected(repo):
+    repo.insert(make_record("cam_00000001"))
+    with pytest.raises((DuplicatePath, sqlite3.IntegrityError)):
+        repo.insert(make_record("cam_00000001", name="Other"))
+
+
+def test_update_changes_name_url_and_enabled(repo):
+    record = repo.insert(make_record("cam_00000001"))
+    updated = CameraRecord(
+        id=record.id,
+        name="Renamed",
+        rtsp_url="rtsp://other:554/live",
+        mediamtx_path=record.mediamtx_path,
+        enabled=False,
+        recording_enabled=False,
+        created_at=record.created_at,
+        updated_at=utcnow_iso(),
+    )
+    repo.update(updated)
+    stored = repo.get(record.id)
+    assert stored.name == "Renamed"
+    assert stored.rtsp_url == "rtsp://other:554/live"
+    assert stored.enabled is False
+    assert stored.mediamtx_path == record.mediamtx_path
+    assert stored.created_at == record.created_at
+
+
+def test_update_missing_raises(repo):
+    with pytest.raises(KeyError):
+        repo.update(make_record("cam_deadbeef"))
+
+
+def test_delete(repo):
+    record = repo.insert(make_record("cam_00000001"))
+    repo.insert(make_record("cam_00000002"))
+    assert repo.delete(record.id) is True
+    assert repo.delete(record.id) is False
+    assert [item.id for item in repo.list()] == ["cam_00000002"]
+
+
+def test_count(repo):
+    assert repo.count() == (0, 0)
+    repo.insert(make_record("cam_00000001", enabled=True))
+    repo.insert(make_record("cam_00000002", enabled=False))
+    assert repo.count() == (2, 1)
+
+
+def test_credentialed_url_round_trips_verbatim(repo):
+    url = "rtsp://admin:hunter2@10.0.0.9:554/Streaming"
+    repo.insert(make_record("cam_00000001", url=url))
+    # MediaMTX needs the real URL; masking happens at the API boundary only.
+    assert repo.get("cam_00000001").rtsp_url == url
+
+
+def test_list_keeps_insertion_order_for_same_timestamp_creations(repo):
+    """Two cameras created in the same millisecond still list in order."""
+    stamp = utcnow_iso()
+    for index in range(5):
+        repo.insert(
+            CameraRecord(
+                id=f"cam_0000000{index}",
+                name=f"Camera {index}",
+                rtsp_url=f"rtsp://cam/{index}",
+                mediamtx_path=f"vms_cam_0000000{index}",
+                enabled=True,
+                recording_enabled=False,
+                created_at=stamp,
+                updated_at=stamp,
+            )
+        )
+    assert [record.id for record in repo.list()] == [
+        f"cam_0000000{index}" for index in range(5)
+    ]
