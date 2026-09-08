@@ -1,4 +1,4 @@
-# Genea VMS — Live View (Component 2)
+# Genea VMS — Live View & Recording (Components 2 + 3)
 
 Register generic RTSP cameras, have MediaMTX ingest them, and watch them in a
 browser over WebRTC.
@@ -443,9 +443,11 @@ recorded video as well as live.
 
 ## Running with the RTSP Camera Simulator
 
-The simulator (Component 1) lives in its own clone and is used here purely as
-an external RTSP source — the same way a real camera would be. **No VMS code
-imports it, calls its API, reads its database or assumes its path layout.**
+The simulator (Component 1) is a separate service in this repository,
+`services/rtsp-simulator/`, running as its own independent Compose project
+(`genea-simulator`). It is used here purely as an external RTSP source — the
+same way a real camera would be. **No VMS code imports it, calls its API, reads
+its database or assumes its path layout.**
 
 ```bash
 # the simulator service

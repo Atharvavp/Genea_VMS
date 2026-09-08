@@ -170,7 +170,8 @@ undo committed work.
 No stored vector is deleted or invalidated by an outage. When Component 4
 returns, the next bounded retry resumes polling and pending work automatically —
 no restart, no page reload. This was verified by stopping Component 4 with a
-fully indexed store; see `HANDOFF_component_5.md` §11.
+fully indexed store; see
+[component-5-semantic-search.md](../../docs/engineering-handoffs/component-5-semantic-search.md) §11.
 
 ## 7. Reindexing and model changes
 
@@ -279,7 +280,7 @@ from a live Component 4 into the gitignored `tests/assets/cache/`; the images
 are never committed.
 
 Results from the run that accompanied this implementation are in
-[HANDOFF_component_5.md](HANDOFF_component_5.md).
+[component-5-semantic-search.md](../../docs/engineering-handoffs/component-5-semantic-search.md).
 
 ## 11. Known limitations
 

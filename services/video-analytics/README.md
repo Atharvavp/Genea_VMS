@@ -58,9 +58,10 @@ open http://localhost:8100
 Stop it again with `docker compose down`. **Do not add `--volumes`** during
 normal teardown: that destroys every recorded event and its images.
 
-This repository runs as its own Compose project (`name: genea-analytics`), so
-Compose commands here never touch the VMS containers even though the VMS clone
-lives in a directory with the same name.
+This service runs as its own Compose project (`name: genea-analytics`), so
+Compose commands here never touch the VMS containers. The VMS is another service
+directory in this repository, `services/vms/`, running as its own independent
+Compose project (`genea-vms`); nothing here starts, stops or configures it.
 
 ---
 
@@ -445,5 +446,6 @@ RTSP credentials are **not** encrypted at rest in SQLite.
 * Recording availability depends on the current Component 3 API and on the
   playback host being reachable from the **browser**, not from this container.
 
-See `HANDOFF_component_4.md` for the verification record, exact measurements,
+See [component-4-video-analytics.md](../../docs/engineering-handoffs/component-4-video-analytics.md)
+for the verification record, exact measurements,
 and the runtime validations that remain open.
