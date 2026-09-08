@@ -23,3 +23,6 @@ tests/assets/cache/
 *.db-wal
 *.db-shm
 *.log
+
+# Local acceptance input (user-supplied test media). Never committed.
+test_videos/

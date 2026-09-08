@@ -6,7 +6,7 @@
 **Plan implemented:** [PLAN_unified_submission.md](../engineering/plans/PLAN_unified_submission.md)
 **Requirements authority:** [PRD_unified_submission_repository_for_codex.md](../engineering/requirements/PRD_unified_submission_repository_for_codex.md)
 **Date:** 2026-09-08
-**Status:** Phases 0–9 executed. Ready for review. **Not merged to `main`.**
+**Status:** Phases 0–9 executed **and the real-event acceptance closed**. Ready for review.
 
 > **What this document is.** Everything below was executed on this machine against
 > this branch, and every number is a measurement taken during this work — not a
@@ -258,25 +258,36 @@ this branch.
 | C5 | `pytest -q -m real_model -rA` | **13 passed, 4 skipped**, 11.69 s | 17 (13+4) |
 | C5 | `pytest -q -m scale` | **4 passed**, 265 deselected, 10.64 s | 4 |
 | C5 | `pytest -q -m e2e` | **13 passed**, 256 deselected, 4.37 s | 13 |
-| C5 | `pytest -q -m real_component4 -rA` | **4 passed, 5 skipped, 1 FAILED** | 10 |
+| C5 | `pytest -q -m real_component4 -rA` | **10 passed**, 259 deselected, 14.35 s | 10 |
 
-**1,374 tests passed.** No assertion was changed, no test deleted, no marker
-excluded and no skip added anywhere.
+**1,384 tests passed** (143 Simulator, 376 VMS, 600 Analytics, 265 Semantic
+Search). No assertion was changed, no test deleted, no marker excluded and no
+skip added anywhere.
 
-Two tiers did not run to completion, both for the same missing input:
+One tier still does not run to completion:
 
 - **C5 `real_model` — 4 skips.** `tests/real_model/test_semantic_quality.py`
   skips with *"evaluation images are not cached locally"*. Its corpus lives in
   the deliberately gitignored, user-owned `tests/assets/cache/`. Expected in any
   fresh tree, anticipated by the plan, and recorded here as a **skip, not a
   pass**.
-- **C5 `real_component4` — 1 failure.**
-  `test_real_events_become_searchable` fails `assert counts["searchable"] > 0`
-  → `assert 0 > 0`, because live Component 4 holds **zero events** (§9). Five
-  sibling tests guard for the empty case and skip; this one has no such guard.
-  The file is byte-identical to its frozen commit —
-  `7cf947d9cbda3b49169a71e85513c5d91c319fc0934378d4103893b7e99ec59f` — so this
-  is a missing-input condition, **not a relocation regression**.
+
+**`real_component4` is now fully green.** On the first run of this branch it was
+`4 passed, 5 skipped, 1 FAILED`, because live Component 4 held zero events. Once
+a real vehicle event existed (§6.5) the same unmodified tier returned
+**10 passed, 0 failed, 0 skipped**, including the previously failing
+`test_real_events_become_searchable` and all five previously skipped tests. The
+test file was never touched: its SHA-256 is still
+`7cf947d9cbda3b49169a71e85513c5d91c319fc0934378d4103893b7e99ec59f`, identical to
+the frozen commit. Its own output for this run:
+
+```text
+live traversal: pages=5 events=450
+real pipeline: events=24 searchable=24 complete=24 model_load=2.5s
+               index=10.5s over 6 batches for 48 images (220 ms/image incl. fetch)
+  overlap poll: 24 -> 295 known events
+10 passed, 259 deselected, 3 warnings in 14.35s
+```
 
 ### 6.2 Runtime validators
 
@@ -347,6 +358,181 @@ ps`, `config --quiet`, `--services --filter status=running` and `exec` all
 succeed from each service directory. The scripts also work when invoked by
 absolute path from an unrelated working directory, because they derive the
 repository root from their own location.
+
+### 6.5 Real-event acceptance: C1 → VMS → C4 → C5
+
+This closes the one path that was blocked when this branch was first validated.
+A user-supplied traffic video was driven through the **normal** Component 1
+Simulator workflow — no ad-hoc publisher, no manual event insertion, and no
+direct access to Component 4's private storage from Component 5.
+
+**Input asset** (local acceptance input, gitignored, never committed):
+
+| Property | Value |
+| --- | --- |
+| File | `test_videos/traffic_1080p_video_demo.mp4` |
+| Video codec | H.264 High @ L4.0, `yuv420p` |
+| Resolution | 1920 × 1080 |
+| Frame rate | 30/1 |
+| Duration | 306.13 s |
+| Size | 170,767,056 bytes |
+| Audio | AAC LC (the Simulator strips audio by design) |
+
+**Baseline immediately before the run:** Component 4 held **0 events**;
+Component 5 reported `known_events: 0`, `searchable_events: 0`,
+`index_revision: 0`. Every event below is therefore provably new and produced
+from this video during this run.
+
+**Component 1 — uploaded through the public API**
+
+```text
+camera      cam_0eb224fb  "acceptance-traffic"  status RUNNING
+stream_path acceptance-traffic
+ffprobe -rtsp_transport tcp rtsp://localhost:8554/simulator/acceptance-traffic
+            -> codec_name=h264  width=1920  height=1080
+```
+
+The Simulator's own `ffprobe` correctly reported the source as
+`h264 1920x1080 30 fps, 306.13 s, has_audio=true`.
+
+**VMS — registered through the public API**
+
+```text
+camera        cam_beb581fb  "acceptance-traffic-vms"
+mediamtx_path vms_cam_beb581fb
+health        OFFLINE -> ONLINE within 8 s
+ffprobe -rtsp_transport tcp rtsp://localhost:8555/vms_cam_beb581fb
+              -> codec_name=h264  width=1920  height=1080
+```
+
+**Component 4 — real detection, tracking and line crossing**
+
+```text
+camera  acam_4963c478  "acceptance-traffic-analytics"
+source  rtsp://host.docker.internal:8555/vms_cam_beb581fb   (published host port)
+worker  STARTING -> RUNNING in 8 s
+line    line_92de82d2  a=(0.08, 0.55)  b=(0.62, 0.55)  direction BOTH
+```
+
+The line is a horizontal segment across both carriageways of a real multi-lane
+road; traffic in the scene moves top-to-bottom in frame, so vehicles cross it.
+**Only runtime line placement was chosen — the crossing implementation, model,
+tracker, thresholds and event semantics were not touched.** The very first line
+placement produced events immediately.
+
+Real YOLO11n detections produced `car`, `truck` and `bus` events, all category
+`vehicle`, all direction `A_TO_B` — the correct sign for downward motion given
+the line's normal. The acceptance event:
+
+| Field | Value |
+| --- | --- |
+| Event id | `evt_f564acbf66c17c128fa00bdcd42cc149` |
+| Analytics camera | `acam_4963c478` |
+| VMS camera | `cam_beb581fb` |
+| Line | `line_92de82d2` |
+| Class / category | `car` / `vehicle` |
+| Direction | `A_TO_B` |
+| Confidence | 0.7003132104873657 |
+| Track id | 80 |
+| Worker session | `ws_77ce3f6c3fd115da59a0b03b59f3defe` |
+| `crossed_at` | 2026-09-08T07:57:59.618Z |
+| bbox (normalised) | x 0.2370–0.3188, y 0.5130–0.7009 |
+| Frame size | 1920 × 1080 |
+
+Both images were fetched through the **public** endpoints and validated:
+
+```text
+GET /api/events/evt_f564.../frame -> HTTP 200  image/jpeg  nosniff
+                                     cache-control: private, max-age=31536000, immutable
+                                     mjpeg 1920x1080, 511,861 bytes
+GET /api/events/evt_f564.../crop  -> HTTP 200  image/jpeg  nosniff
+                                     mjpeg 157x203, 9,272 bytes
+```
+
+Both were opened and inspected visually: the crop is a dark Opel car seen from
+above, and the frame is the traffic scene with that same car at exactly the
+recorded bounding box. **The images correspond to the vehicle and the event.**
+
+**Component 5 — normal public-HTTP discovery and SigLIP indexing**
+
+Nothing was inserted into Component 5's store. Its existing polling and backfill
+path discovered the events over `GET {C4}/api/*` and embedded them:
+
+```text
+before:  known_events=0    searchable_events=0    index_revision=0
+after:   known_events=486  searchable_events=486  complete_events=486
+         crop_indexed=486  frame_indexed=486  (972 vectors)
+         partial=0  failed=0  pending=0  permanent_error=0
+         index_revision=972  backfill_complete=true
+```
+
+The acceptance event specifically:
+
+```text
+GET {C5}/api/events/evt_f564acbf66c17c128fa00bdcd42cc149 -> HTTP 200
+  object_class=car  object_category=vehicle  direction=A_TO_B
+  index_state=complete   representations={"crop":"indexed","frame":"indexed"}
+```
+
+**Text search** (`POST /api/search/text`, unmodified ranking and thresholds):
+
+| Query | Candidates | Result |
+| --- | ---: | --- |
+| `a car on the road` | 486 | **acceptance event returned at rank 54 of 100, score 0.077336** |
+| `car` | 486 | rank 1 is a `car` event, score 0.086529 |
+| `truck` | 486 | top 5 are `truck`/`bus` — large vehicles, scores 0.089–0.099 |
+| `person walking` | 486 | only cars exist in this corpus, and scores collapse to 0.028–0.033 |
+| `truck` + class filter `truck` | **98** (from 486) | all five results are `truck` |
+
+Ranking is therefore genuinely discriminating rather than arbitrary: vehicle
+words rank vehicles, a class filter narrows candidates correctly, and a query
+for an object the corpus does not contain scores far lower. Scores across 486
+near-identical overhead car crops are legitimately tight, which is why the
+acceptance event sits mid-list for a generic car query rather than first.
+
+**Image search** (`POST /api/search/image`), using the event's own crop fetched
+from Component 4's **public** endpoint — never from its private storage:
+
+```text
+candidate_count=486   elapsed_ms=319.4   index_revision=900
+rank 1: evt_f564acbf66c17c128fa00bdcd42cc149  car  score 1.000000   <== acceptance event
+rank 2: evt_b47234bd7723bf1fec7dda35eec0235c  car  score 0.921594
+rank 3: evt_6d813cd502787dea9878755359dbbc8f  car  score 0.904580
+```
+
+**The exact newly generated event is retrieved at rank 1 with score 1.000000 out
+of 486 candidates.**
+
+### 6.6 Component 4 outage with real indexed data
+
+The earlier structural-only outage proof is now closed with real data. The
+corpus was first frozen by stopping the Simulator camera, so the index could not
+move underneath the test.
+
+| Check | C4 up (baseline) | C4 stopped | After C4 restart |
+| --- | --- | --- | --- |
+| C5 `/health` | `200 · ok · upstream available` | **`200 · degraded · search ok · upstream unavailable · indexing paused`** | `200 · ok · upstream available` |
+| Index | 486/486, crop 486, frame 486, rev 972 | **486/486, crop 486, frame 486, rev 972 — unchanged** | 486/486, rev 972 |
+| `upstream_error_code` | `None` | `component4_unreachable` | `None` |
+| Text `a car on the road` | rank **54**, score **0.077336** | rank **54**, score **0.077336** | — |
+| Image (event crop) | rank **1**, score **1.0** | rank **1**, score **1.0** | — |
+| C5 local event detail | 200 | **200** | 200 |
+| C5 crop proxy | 200 | 503 (correct: the image lives upstream) | **200** |
+| VMS `/health` | 200 ok | **200 ok** | 200 ok |
+| Simulator `/health` | 200 | **200** | 200 |
+
+Text and image retrieval of the real indexed event were **byte-identical before
+and during the outage**, and no vector was invalidated.
+
+Recovery: `docker compose start analytics` → Component 5 returned to
+`upstream: available` **automatically in 6 seconds**, with the **same container
+id** (`5f395d495754`) throughout — Component 5 was never restarted — and its
+crop proxy returned to `HTTP 200`.
+
+**Durability bonus.** Midway through this session every container was lost at
+the daemon level. All volumes survived, and after `./scripts/start-all.sh` the
+Component 4 events, the Component 5 index and the acceptance event
+(`index_state: complete`, both representations indexed) were all still present.
 
 ---
 
@@ -443,36 +629,36 @@ environment variable and no undocumented manual step**.
 
 This is the honest part. Nothing here is hidden behind a passing summary.
 
-1. **No real analytics event was generated, so no event reached Semantic
-   Search.** The only bundled video source is the simulator's SMPTE colour-bar
-   clip, in which YOLO11n correctly detects nothing. Consequently:
-   - Component 4's `last_event_at` stays `null`; no `crop.jpg` / `frame.jpg` exists
-   - Component 5 indexed **0 events**, so **text and image search ranking over
-     real events is unproven in this repository**
-   - `test_real_events_become_searchable` fails its data precondition (§6.1)
-   - "Component 5 search over **already indexed** data survives a Component 4
-     outage" is proven *structurally* (HTTP 200, search served from the local
-     snapshot, no vector invalidated) but **not with real data**
+1. **Component 5's semantic-quality evaluation did not run** (4 skips): its
+   corpus is deliberately gitignored and user-owned. This is the only tier in
+   the repository that still does not execute to completion.
 
-   Closing this needs one legally usable H.264 clip containing a person or a
-   supported vehicle crossing a drawable line. This is the plan's §34 open
-   question and it remains open.
+2. **Retrieval quality is not a general accuracy claim.** The acceptance corpus
+   is 486 events from a single five-minute traffic clip filmed from one fixed
+   viewpoint, and its class labels come from Component 4's own detector, which
+   the Component 4 handoff records can itself be wrong. Ranking was shown to
+   discriminate (§6.5), but no benchmark was run and none is claimed.
 
-2. **Component 5's semantic-quality evaluation did not run** (4 skips): its
-   corpus is deliberately gitignored and user-owned.
+3. **Only vehicles were exercised.** The supplied clip contains cars, trucks and
+   buses. The `person` category is implemented and enabled, but no person
+   crossing was produced, so that path remains unproven end to end.
 
-3. **amd64 was not built or tested.** Everything here is `linux/arm64` on Apple
+4. **amd64 was not built or tested.** Everything here is `linux/arm64` on Apple
    Silicon with Docker Desktop.
 
-4. **Native Linux `host-gateway` was not exercised.** The `extra_hosts` mappings
+5. **Native Linux `host-gateway` was not exercised.** The `extra_hosts` mappings
    are preserved unchanged but were verified on Docker Desktop for macOS only.
 
-5. **No real IP camera, no credentialed RTSP source end to end, no load, soak or
-   chaos testing** beyond the stop/start/outage/reset cycles recorded above.
+6. **No real IP camera and no credentialed RTSP source end to end.** The
+   acceptance source was a file published by the Simulator, not a camera that
+   demands authentication.
 
-6. **Browser coverage is Chromium only**, via the component E2E suites.
+7. **No load, soak or chaos testing** beyond the stop/start, outage, reset and
+   container-loss cycles recorded above. The longest continuous run was minutes.
 
-7. Every component-level limitation recorded in the five historical handoffs
+8. **Browser coverage is Chromium only**, via the component E2E suites.
+
+9. Every component-level limitation recorded in the five historical handoffs
    still applies unchanged, because no application code was modified.
 
 ---
@@ -529,22 +715,31 @@ or isolation property was changed.
 | No verified application contract changed | ✅ |
 | No new cross-service import, mount or shared DB | ✅ scanned |
 | Existing ports and networking still work | ✅ live-verified |
-| Service-local tests still pass | ✅ 1,374 passed |
+| Service-local tests still pass | ✅ 1,384 passed |
 | Root orchestration works and is optional | ✅ |
 | Clean clone needs no sibling clone | ✅ |
 | No developer absolute path, no secret, no generated data tracked | ✅ |
 | `git diff --check` | ✅ empty |
 | `git status --short` | ✅ empty |
-| Full C1→VMS→C4→C5 **new-event** acceptance | ❌ **blocked** — see §9.1 |
+| Full C1→VMS→C4→C5 **new-event** acceptance | ✅ **passed** — real vehicle event indexed and retrieved, see §6.5 |
+| Real-data Component 4 outage continuity | ✅ identical text and image retrieval while C4 was down, §6.6 |
+| `real_component4` tier | ✅ 10 passed, 0 failed, 0 skipped |
 | User review and explicit merge approval | ⏳ pending |
 
-**Recommendation: do not merge yet.** Everything that can be proven without the
-missing input is proven. One acceptance path — a real analytics event flowing
-into semantic search — needs a legally usable H.264 person/vehicle clip. Once
-that exists, re-run the Component 5 `real_component4` tier and the event portion
-of the chain, then merge.
+**Recommendation: ready to merge.** Every acceptance gate that this repository
+can prove is green, including the real-event path that was previously blocked. A
+user-supplied traffic clip was driven through the Simulator, produced real
+YOLO11n vehicle events in Component 4, and those events were discovered,
+embedded and retrieved by Component 5 through the public HTTP contract alone —
+by text, and by image at rank 1 with score 1.000000. The previously failing
+`real_component4` tier now passes in full without a single test being modified.
 
-The branch has not been pushed and `main` is untouched.
+What remains open is listed in §9 and none of it blocks this refactor: it is
+either deliberately user-owned data (the semantic-quality corpus), a platform
+not available here (amd64, native Linux), or a class of testing explicitly out
+of scope (real IP cameras, soak and load).
+
+The branch has not been pushed.
 
 ---
 
