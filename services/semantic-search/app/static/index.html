@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Genea Semantic Search</title>
+<link rel="stylesheet" href="/static/styles.css">
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+</head>
+<body>
+<a class="skip" href="#results">Skip to results</a>
+
+<header class="topbar">
+  <h1>Semantic event search</h1>
+  <div class="status" id="status-bar" role="status" aria-live="polite">
+    <span class="pill" id="status-search">search &middot; checking</span>
+    <span class="pill" id="status-index">index &middot; checking</span>
+    <span class="pill" id="status-upstream">Component&nbsp;4 &middot; checking</span>
+  </div>
+</header>
+
+<main>
+  <form id="search-form" class="panel" novalidate>
+    <fieldset class="modes">
+      <legend>Search mode</legend>
+      <label><input type="radio" name="mode" value="text" checked> Text</label>
+      <label><input type="radio" name="mode" value="image"> Image</label>
+    </fieldset>
+
+    <div id="text-mode">
+      <label for="query">Describe what you are looking for</label>
+      <input type="text" id="query" name="query" maxlength="256" autocomplete="off"
+             placeholder="a white truck at the loading bay">
+    </div>
+
+    <div id="image-mode" hidden>
+      <label for="image">Query image (JPEG or PNG, up to 8&nbsp;MiB)</label>
+      <input type="file" id="image" name="image" accept="image/jpeg,image/png">
+      <img id="image-preview" alt="Preview of the image you selected" hidden>
+    </div>
+
+    <details class="filters" id="filters">
+      <summary>Filters</summary>
+      <div class="grid">
+        <div>
+          <label for="camera">Camera</label>
+          <select id="camera"><option value="">Any camera</option></select>
+        </div>
+        <div>
+          <label for="category">Category</label>
+          <select id="category"><option value="">Any category</option></select>
+        </div>
+        <div>
+          <label for="klass">Class</label>
+          <select id="klass"><option value="">Any class</option></select>
+        </div>
+        <div>
+          <label for="direction">Direction</label>
+          <select id="direction"><option value="">Any direction</option></select>
+        </div>
+        <div>
+          <label for="from">From (UTC)</label>
+          <input type="datetime-local" id="from" step="1">
+        </div>
+        <div>
+          <label for="to">To (UTC, exclusive)</label>
+          <input type="datetime-local" id="to" step="1">
+        </div>
+        <div>
+          <label for="top-k">Results</label>
+          <input type="number" id="top-k" min="1" max="100" value="20">
+        </div>
+        <div>
+          <label for="min-score">Minimum score (optional)</label>
+          <input type="number" id="min-score" min="-1" max="1" step="0.01"
+                 placeholder="none">
+        </div>
+      </div>
+      <p class="hint">
+        Scores are cosine similarities between the query and an event image.
+        They are not probabilities and have no fixed meaning across queries.
+      </p>
+    </details>
+
+    <div class="actions">
+      <button type="submit" id="search-button">Search</button>
+      <button type="button" id="reset-button" class="secondary">Reset</button>
+    </div>
+  </form>
+
+  <p id="message" class="message" role="alert" hidden></p>
+  <p id="summary" class="summary" aria-live="polite"></p>
+
+  <section id="results" class="results" aria-label="Search results" tabindex="-1"></section>
+</main>
+
+<aside id="drawer" class="drawer" hidden aria-labelledby="drawer-title" role="dialog"
+       aria-modal="false">
+  <div class="drawer-head">
+    <h2 id="drawer-title">Event</h2>
+    <button type="button" id="drawer-close" aria-label="Close details">&times;</button>
+  </div>
+  <div id="drawer-body" class="drawer-body"></div>
+</aside>
+
+<script src="/static/app.js" defer></script>
+</body>
+</html>

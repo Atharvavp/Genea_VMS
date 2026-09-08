@@ -1,0 +1,37 @@
+# Opt-in test overlay. Same project name as the base file. It starts no service
+# of its own beyond the test runner: the fake Component 4 used by the
+# integration tier is an in-process ASGI app, not a container.
+name: genea-semantic-search
+
+services:
+  semantic-search:
+    profiles: ["never-started-by-the-test-overlay"]
+
+  tests:
+    build:
+      context: .
+      target: tests
+    environment:
+      SEMANTIC_DATA_DIR: /data
+      SEMANTIC_DB_PATH: /data/semantic.db
+      SEMANTIC_MODEL_DIR: /opt/models/siglip
+      SEMANTIC_TORCH_THREADS: "2"
+      COMPONENT4_API_BASE_URL: ${COMPONENT4_API_BASE_URL:-http://host.docker.internal:8100}
+      PYTHONPATH: /srv/semantic
+      PYTEST_ADDOPTS: -p no:cacheprovider
+      HOME: /tmp
+    volumes:
+      # The working tree is mounted so a test edit does not require an image
+      # rebuild. The image also COPYs tests/, so it stays self-contained.
+      - ./app:/srv/semantic/app:ro
+      - ./tests:/srv/semantic/tests:ro
+      - ./scripts:/srv/semantic/scripts:ro
+      - ./pyproject.toml:/srv/semantic/pyproject.toml:ro
+      - semantic-test-data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    init: true
+
+volumes:
+  semantic-test-data:
+    name: genea-semantic-search-test-data

@@ -1,0 +1,23 @@
+[project]
+name = "genea-semantic-search"
+version = "0.1.0"
+description = "Component 5 - Standalone Semantic Image Retrieval & Historical Event Search"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = ["error::DeprecationWarning:app.*"]
+markers = [
+    "unit: no network, no real model, fast",
+    "integration: fake Component 4 server, real SQLite, fake embedding runtime",
+    "real_model: loads the frozen SigLIP checkpoint on CPU, offline",
+    "real_component4: requires a reachable live Component 4 at COMPONENT4_API_BASE_URL",
+    "scale: 1k/5k/10k synthetic index measurements",
+    "e2e: Playwright/Chromium against an in-process server",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"

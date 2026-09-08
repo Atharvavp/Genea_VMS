@@ -1,0 +1,7 @@
+# Test-only dependencies for Component 5, frozen by PLAN section 8.2. Installed
+# on top of the runtime image in the opt-in `tests` stage only.
+#   pip-compile --generate-hashes --output-file=test.lock test.in
+pytest==8.4.1
+pytest-asyncio==1.1.0
+playwright==1.55.0
+psutil==7.2.2
