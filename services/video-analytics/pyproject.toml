@@ -1,0 +1,22 @@
+[project]
+name = "genea-analytics"
+version = "0.1.0"
+description = "Component 4 - Standalone Video Analytics & Event Detection"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = ["error::DeprecationWarning:app.*"]
+markers = [
+    "unit: no network, no real GStreamer/model, fast",
+    "integration: container/native dependencies, deterministic local fixtures",
+    "real_model: loads YOLO weights and CPU Torch",
+    "e2e: browser against fake/integration server",
+    "four_camera: resource-heavy isolation/throughput validation",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"

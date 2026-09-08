@@ -1,0 +1,48 @@
+# Component 4 runs as its own Compose project. The explicit name keeps it
+# completely separate from the VMS stack, which lives in a directory of the
+# same name: without it, Compose would treat the VMS containers as orphans of
+# this project.
+name: genea-analytics
+
+services:
+  analytics:
+    build:
+      context: .
+      target: final
+    ports:
+      - "${ANALYTICS_HTTP_PORT:-8100}:8100"
+    environment:
+      ANALYTICS_DATA_DIR: /data
+      ANALYTICS_DB_PATH: /data/analytics.db
+      ANALYTICS_EVENT_DIR: /data/events
+      ANALYTICS_MODEL_PATH: /opt/models/yolo11n.pt
+      ANALYTICS_TORCH_THREADS: ${ANALYTICS_TORCH_THREADS:-2}
+      ANALYTICS_LOG_LEVEL: ${ANALYTICS_LOG_LEVEL:-INFO}
+      VMS_API_BASE_URL: ${VMS_API_BASE_URL:-http://host.docker.internal:8090}
+      CURSOR_SIGNING_KEY: ${CURSOR_SIGNING_KEY:?set CURSOR_SIGNING_KEY in .env}
+    volumes:
+      - analytics-data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    stop_grace_period: 30s
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test:
+        - CMD
+        - /opt/venv/bin/python
+        - scripts/validate_runtime.py
+        - --health-url
+        - http://127.0.0.1:8100/health
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  analytics-data:
+    name: genea-analytics-data
